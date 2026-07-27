@@ -11,8 +11,10 @@
   const ETEST_INCLUDE_ANSWERS_KEY = "eeEtestIncludeAnswers";
   const ETEST_INCLUDE_IMAGES_KEY = "eeEtestIncludeImages";
   const ETEST_MARK_UNANSWERED_KEY = "eeEtestMarkUnansweredEnabled";
+  const ETEST_COPY_HTML_KEY = "eeEtestCopyHtmlEnabled";
   const COPY_BTN_CLASS = "ee-etest-question-copy-btn";
   const COPY_ALL_BTN_CLASS = "ee-etest-copyall-btn";
+  const COPY_HTML_BTN_CLASS = "ee-etest-question-copyhtml-btn";
   const UNANSWERED_CLASS = "ee-etest-unanswered";
   const STYLE_ID = "ee-etest-copy-style";
   const BLANK_MARKER = "___";
@@ -25,6 +27,7 @@
     "etest-question-reportbtn",
     COPY_BTN_CLASS,
     COPY_ALL_BTN_CLASS,
+    COPY_HTML_BTN_CLASS,
   ]);
   const BLOCK_TAGS = new Set([
     "ADDRESS", "ARTICLE", "ASIDE", "BLOCKQUOTE", "DL", "DT", "DD",
@@ -45,6 +48,7 @@
 
   let etestCopyEnabled = false;
   let markUnansweredEnabled = false;
+  let copyHtmlEnabled = false;
   let questionButtonsEnabled = true;
   let wholeTestButtonEnabled = true;
   let includeSelectedAnswers = true;
@@ -689,6 +693,26 @@
     return button;
   }
 
+  function makeCopyHtmlButton(playactions) {
+    const label = getMessage("etestCopyQuestionHtml", "Copy question HTML");
+    const { button, icon, status } = createIconButton(
+      `etest-question-copybtn ${COPY_HTML_BTN_CLASS}`,
+      label,
+    );
+    icon.className = "fa fa-fw fa-code";
+    button.addEventListener("click", () => {
+      const content = playactions.closest(".etest-question-content");
+      if (!content) return;
+      const model = buildQuestionModel(content);
+      const html = String(model.htmlBody || "").split(SELECTED_MARKER_HTML).join("").trim();
+      if (!html) return;
+      writePlainText(html)
+        .then(() => flashFeedback(button, icon, status, true))
+        .catch(() => flashFeedback(button, icon, status, false));
+    });
+    return button;
+  }
+
   function ensureStyles() {
     if (document.getElementById(STYLE_ID)) return;
     const styleHost = document.head || document.documentElement;
@@ -747,6 +771,33 @@
         white-space: nowrap;
         width: 1px;
       }
+      .${COPY_HTML_BTN_CLASS} {
+        align-items: center;
+        appearance: none;
+        background: transparent;
+        border: 0;
+        box-sizing: border-box;
+        color: inherit;
+        cursor: pointer;
+        display: inline-flex;
+        font-size: 16px;
+        height: 32px;
+        justify-content: center;
+        line-height: 1;
+        min-height: 0;
+        min-width: 0;
+        padding: 0;
+        position: relative;
+        transition: opacity 100ms ease-out, transform 100ms ease-out;
+        width: 32px;
+      }
+      .${COPY_HTML_BTN_CLASS} > i {
+        color: currentColor !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+      }
+      .${COPY_HTML_BTN_CLASS}:active { transform: scale(0.97); }
+      html.ee-dark .${COPY_HTML_BTN_CLASS} { color: var(--ee-text, #f5f7fa) !important; }
       .${UNANSWERED_CLASS} {
         outline: 2px solid #e65100 !important;
         outline-offset: 3px;
@@ -842,8 +893,23 @@
     });
   }
 
+  // Independent of the text-copy feature: the "Copy question HTML" button rides
+  // in the same per-question action bar but is gated by its own toggle.
+  function ensureHtmlButtons() {
+    if (!copyHtmlEnabled) {
+      document.querySelectorAll(`.${COPY_HTML_BTN_CLASS}`).forEach((button) => button.remove());
+      return;
+    }
+    ensureStyles();
+    document.querySelectorAll(".etest-question-playactions").forEach((playactions) => {
+      if (playactions.querySelector(`.${COPY_HTML_BTN_CLASS}`)) return;
+      playactions.insertBefore(makeCopyHtmlButton(playactions), playactions.firstChild);
+    });
+  }
+
   function applyEnhancements() {
     ensureButtons();
+    ensureHtmlButtons();
     markUnanswered();
   }
 
@@ -907,6 +973,7 @@
       selectedAnswers: values[ETEST_INCLUDE_ANSWERS_KEY] !== false,
       wholeTestImages: values[ETEST_INCLUDE_IMAGES_KEY] !== false,
       markUnanswered: values[ETEST_MARK_UNANSWERED_KEY] === true,
+      copyHtml: values[ETEST_COPY_HTML_KEY] === true,
     };
   }
 
@@ -918,6 +985,7 @@
       ETEST_INCLUDE_ANSWERS_KEY,
       ETEST_INCLUDE_IMAGES_KEY,
       ETEST_MARK_UNANSWERED_KEY,
+      ETEST_COPY_HTML_KEY,
     ];
     chrome.storage.local.get(keys, (result) => {
       const preferences = resolvePreferences(result);
@@ -927,6 +995,7 @@
       includeSelectedAnswers = preferences.selectedAnswers;
       includeWholeTestImages = preferences.wholeTestImages;
       markUnansweredEnabled = preferences.markUnanswered;
+      copyHtmlEnabled = preferences.copyHtml;
       applyEnhancements();
     });
 
@@ -942,6 +1011,7 @@
       if (changes[ETEST_INCLUDE_ANSWERS_KEY]) includeSelectedAnswers = changes[ETEST_INCLUDE_ANSWERS_KEY].newValue !== false;
       if (changes[ETEST_INCLUDE_IMAGES_KEY]) includeWholeTestImages = changes[ETEST_INCLUDE_IMAGES_KEY].newValue !== false;
       if (changes[ETEST_MARK_UNANSWERED_KEY]) markUnansweredEnabled = changes[ETEST_MARK_UNANSWERED_KEY].newValue === true;
+      if (changes[ETEST_COPY_HTML_KEY]) copyHtmlEnabled = changes[ETEST_COPY_HTML_KEY].newValue === true;
       if (keys.some((key) => changes[key])) applyEnhancements();
     });
   }

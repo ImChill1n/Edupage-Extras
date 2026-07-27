@@ -182,6 +182,7 @@ test("test copying is opt-in while its child preferences default on", () => {
       selectedAnswers: true,
       wholeTestImages: true,
       markUnanswered: false,
+      copyHtml: false,
     },
   );
   assert.deepEqual(
@@ -196,10 +197,12 @@ test("test copying is opt-in while its child preferences default on", () => {
       selectedAnswers: true,
       wholeTestImages: true,
       markUnanswered: false,
+      copyHtml: false,
     },
   );
   assert.equal(resolvePreferences({ eeEtestCopyEnabled: true }).copyEnabled, true);
   assert.equal(resolvePreferences({ eeEtestMarkUnansweredEnabled: true }).markUnanswered, true);
+  assert.equal(resolvePreferences({ eeEtestCopyHtmlEnabled: true }).copyHtml, true);
 });
 
 test("unanswered detection needs every slot filled and ignores text-only questions", () => {

@@ -55,6 +55,7 @@ const ucivoExportToggle = document.getElementById("UcivoExportCheckbox");
 const gradesSortFilterToggle = document.getElementById("GradesSortFilterCheckbox");
 const gradesExportToggle = document.getElementById("GradesExportCheckbox");
 const etestMarkUnansweredToggle = document.getElementById("EtestMarkUnansweredCheckbox");
+const etestCopyHtmlToggle = document.getElementById("EtestCopyHtmlCheckbox");
 const timetableExportToggle = document.getElementById("TimetableExportCheckbox");
 const timetableExportContent = document.getElementById("TimetableExportContent");
 const etestCopyToggle = document.getElementById("EtestCopyCheckbox");
@@ -101,6 +102,7 @@ const UCIVO_EXPORT_KEY = "eeUcivoExportEnabled";
 const GRADES_SORT_FILTER_KEY = "eeGradesSortFilterEnabled";
 const GRADES_EXPORT_KEY = "eeGradesExportEnabled";
 const ETEST_MARK_UNANSWERED_KEY = "eeEtestMarkUnansweredEnabled";
+const ETEST_COPY_HTML_KEY = "eeEtestCopyHtmlEnabled";
 const TIMETABLE_EXPORT_KEY = "eeTimetableExportEnabled";
 const ETEST_COPY_KEY = "eeEtestCopyEnabled";
 const ETEST_QUESTION_BUTTONS_KEY = "eeEtestQuestionButtonsEnabled";
@@ -1073,6 +1075,15 @@ if (etestMarkUnansweredToggle) {
 	});
 	etestMarkUnansweredToggle.addEventListener("change", () => {
 		chrome.storage.local.set({ [ETEST_MARK_UNANSWERED_KEY]: etestMarkUnansweredToggle.checked });
+	});
+}
+
+if (etestCopyHtmlToggle) {
+	chrome.storage.local.get([ETEST_COPY_HTML_KEY], (result) => {
+		etestCopyHtmlToggle.checked = result[ETEST_COPY_HTML_KEY] === true;
+	});
+	etestCopyHtmlToggle.addEventListener("change", () => {
+		chrome.storage.local.set({ [ETEST_COPY_HTML_KEY]: etestCopyHtmlToggle.checked });
 	});
 }
 
