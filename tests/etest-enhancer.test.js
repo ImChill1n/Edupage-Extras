@@ -181,6 +181,7 @@ test("test copying is opt-in while its child preferences default on", () => {
       wholeTestButton: true,
       selectedAnswers: true,
       wholeTestImages: true,
+      markUnanswered: false,
     },
   );
   assert.deepEqual(
@@ -194,9 +195,56 @@ test("test copying is opt-in while its child preferences default on", () => {
       wholeTestButton: true,
       selectedAnswers: true,
       wholeTestImages: true,
+      markUnanswered: false,
     },
   );
   assert.equal(resolvePreferences({ eeEtestCopyEnabled: true }).copyEnabled, true);
+  assert.equal(resolvePreferences({ eeEtestMarkUnansweredEnabled: true }).markUnanswered, true);
+});
+
+test("unanswered detection needs every slot filled and ignores text-only questions", () => {
+  const { questionAnswerState } = loadInternals().exports;
+  const makeContent = ({ inputs = [], selects = [], choices = [], ordering = false }) => ({
+    querySelectorAll(selector) {
+      if (selector === "input, textarea") return inputs;
+      if (selector === "select") return selects;
+      if (selector === ".etest-alist-answer") return choices;
+      return [];
+    },
+    querySelector(selector) {
+      return selector === ".etest-alist-ordering" && ordering ? {} : null;
+    },
+  });
+
+  // No inputs at all -> pure text/informational question, never flagged.
+  assert.equal(questionAnswerState(makeContent({})), "none");
+
+  // Two blanks, only one filled -> the whole question is still incomplete.
+  assert.equal(questionAnswerState(makeContent({
+    inputs: [
+      element("input", { type: "text", value: "done" }),
+      element("input", { type: "text", value: "" }),
+    ],
+  })), "incomplete");
+
+  // Both blanks filled -> complete.
+  assert.equal(questionAnswerState(makeContent({
+    inputs: [
+      element("input", { type: "text", value: "a" }),
+      element("input", { type: "text", value: "b" }),
+    ],
+  })), "complete");
+
+  // A choice question counts as one slot, filled once any option is selected.
+  assert.equal(questionAnswerState(makeContent({
+    choices: [
+      element("li", { className: "etest-alist-answer" }),
+      element("li", { className: "etest-alist-answer", attributes: { "aria-checked": "true" } }),
+    ],
+  })), "complete");
+  assert.equal(questionAnswerState(makeContent({
+    choices: [element("li", { className: "etest-alist-answer" })],
+  })), "incomplete");
 });
 
 test("the test page keeps image export out of its action bar", () => {

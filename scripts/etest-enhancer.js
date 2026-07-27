@@ -10,8 +10,10 @@
   const ETEST_WHOLE_TEST_BUTTON_KEY = "eeEtestWholeTestButtonEnabled";
   const ETEST_INCLUDE_ANSWERS_KEY = "eeEtestIncludeAnswers";
   const ETEST_INCLUDE_IMAGES_KEY = "eeEtestIncludeImages";
+  const ETEST_MARK_UNANSWERED_KEY = "eeEtestMarkUnansweredEnabled";
   const COPY_BTN_CLASS = "ee-etest-question-copy-btn";
   const COPY_ALL_BTN_CLASS = "ee-etest-copyall-btn";
+  const UNANSWERED_CLASS = "ee-etest-unanswered";
   const STYLE_ID = "ee-etest-copy-style";
   const BLANK_MARKER = "___";
   const SELECTED_MARKER_TOKEN = "\ue000ee-selected\ue001";
@@ -42,6 +44,7 @@
   const ANSWER_INPUT_TYPES = new Set([...BLANK_INPUT_TYPES].filter((type) => type !== "password"));
 
   let etestCopyEnabled = false;
+  let markUnansweredEnabled = false;
   let questionButtonsEnabled = true;
   let wholeTestButtonEnabled = true;
   let includeSelectedAnswers = true;
@@ -744,6 +747,14 @@
         white-space: nowrap;
         width: 1px;
       }
+      .${UNANSWERED_CLASS} {
+        outline: 2px solid #e65100 !important;
+        outline-offset: 3px;
+        border-radius: 6px;
+      }
+      html.ee-dark .${UNANSWERED_CLASS} {
+        outline-color: #ff8f3f !important;
+      }
       @media (prefers-reduced-motion: reduce) {
         .${COPY_BTN_CLASS} { transition-duration: 0.01ms; }
       }
@@ -780,11 +791,67 @@
     });
   }
 
+  // Collects every fillable answer slot in a question, each as a predicate that
+  // returns whether that slot has been completed. A question with multiple
+  // blanks/dropdowns is only "answered" once EVERY slot is filled. Returns an
+  // empty list for a text-only question (no inputs), which the caller treats as
+  // "nothing to answer" and never marks.
+  function getAnswerSlots(content) {
+    if (!content || typeof content.querySelectorAll !== "function") return [];
+    const slots = [];
+    content.querySelectorAll("input, textarea").forEach((control) => {
+      const tagName = String(control.tagName || "").toUpperCase();
+      if (tagName === "TEXTAREA") {
+        slots.push(() => normalizeInlineText(control.value) !== "");
+        return;
+      }
+      const type = String(control.type || (control.getAttribute && control.getAttribute("type")) || "").toLowerCase();
+      if (BLANK_INPUT_TYPES.has(type) && type !== "password") {
+        slots.push(() => normalizeInlineText(control.value) !== "");
+      }
+    });
+    content.querySelectorAll("select").forEach((select) => {
+      slots.push(() => selectedOptionLabels(select).length > 0);
+    });
+    // A single-/multi-choice list counts as one slot (answered once any option
+    // is picked). Skip ordering questions — their ".etest-alist-answer" rows are
+    // draggable items, not checkable choices, so they have no reliable empty state.
+    if (!content.querySelector(".etest-alist-ordering")) {
+      const choices = Array.from(content.querySelectorAll(".etest-alist-answer"));
+      if (choices.length) slots.push(() => choices.some((choice) => isSelectedChoice(choice)));
+    }
+    return slots;
+  }
+
+  // "none" = no answerable inputs (pure text/informational — ignore it),
+  // "complete" = every slot filled, "incomplete" = at least one slot empty.
+  function questionAnswerState(content) {
+    const slots = getAnswerSlots(content);
+    if (!slots.length) return "none";
+    return slots.every((isFilled) => isFilled()) ? "complete" : "incomplete";
+  }
+
+  function markUnanswered() {
+    if (!markUnansweredEnabled) {
+      document.querySelectorAll(`.${UNANSWERED_CLASS}`).forEach((element) => element.classList.remove(UNANSWERED_CLASS));
+      return;
+    }
+    ensureStyles();
+    document.querySelectorAll(".etest-question-content").forEach((content) => {
+      content.classList.toggle(UNANSWERED_CLASS, questionAnswerState(content) === "incomplete");
+    });
+  }
+
+  function applyEnhancements() {
+    ensureButtons();
+    markUnanswered();
+  }
+
   function scheduleEnsure() {
     if (observerTimer) return;
     observerTimer = setTimeout(() => {
       observerTimer = null;
-      ensureButtons();
+      applyEnhancements();
     }, 150);
   }
 
@@ -826,6 +893,8 @@
     });
     document.addEventListener("input", scheduleSnapshotFromEvent, true);
     document.addEventListener("change", scheduleSnapshotFromEvent, true);
+    document.addEventListener("input", scheduleEnsure, true);
+    document.addEventListener("change", scheduleEnsure, true);
     document.addEventListener("click", snapshotBeforeNavigation, true);
     document.addEventListener("click", scheduleSnapshotFromEvent, false);
   }
@@ -837,6 +906,7 @@
       wholeTestButton: values[ETEST_WHOLE_TEST_BUTTON_KEY] !== false,
       selectedAnswers: values[ETEST_INCLUDE_ANSWERS_KEY] !== false,
       wholeTestImages: values[ETEST_INCLUDE_IMAGES_KEY] !== false,
+      markUnanswered: values[ETEST_MARK_UNANSWERED_KEY] === true,
     };
   }
 
@@ -847,6 +917,7 @@
       ETEST_WHOLE_TEST_BUTTON_KEY,
       ETEST_INCLUDE_ANSWERS_KEY,
       ETEST_INCLUDE_IMAGES_KEY,
+      ETEST_MARK_UNANSWERED_KEY,
     ];
     chrome.storage.local.get(keys, (result) => {
       const preferences = resolvePreferences(result);
@@ -855,7 +926,8 @@
       wholeTestButtonEnabled = preferences.wholeTestButton;
       includeSelectedAnswers = preferences.selectedAnswers;
       includeWholeTestImages = preferences.wholeTestImages;
-      ensureButtons();
+      markUnansweredEnabled = preferences.markUnanswered;
+      applyEnhancements();
     });
 
     chrome.storage.onChanged.addListener((changes, area) => {
@@ -869,7 +941,8 @@
       }
       if (changes[ETEST_INCLUDE_ANSWERS_KEY]) includeSelectedAnswers = changes[ETEST_INCLUDE_ANSWERS_KEY].newValue !== false;
       if (changes[ETEST_INCLUDE_IMAGES_KEY]) includeWholeTestImages = changes[ETEST_INCLUDE_IMAGES_KEY].newValue !== false;
-      if (keys.some((key) => changes[key])) ensureButtons();
+      if (changes[ETEST_MARK_UNANSWERED_KEY]) markUnansweredEnabled = changes[ETEST_MARK_UNANSWERED_KEY].newValue === true;
+      if (keys.some((key) => changes[key])) applyEnhancements();
     });
   }
 
@@ -893,6 +966,7 @@
       renderTestPayload,
       writeClipboard,
       resolvePreferences,
+      questionAnswerState,
       init,
     };
     return;
