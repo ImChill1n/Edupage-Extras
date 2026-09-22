@@ -4,6 +4,15 @@ All notable changes to Edupage Extras are documented here. Versions follow
 `package.json` / `manifest.json`. History pre v0.7.0 is only in the git
 log — this file starts at the Firefox-compatibility update.
 
+## 1.0.8 — 2026-09-22
+
+- Added optional OpenAI support to the Experimental Test Question Helper,
+  including per-provider credentials, model presets, and reasoning controls.
+- Added Gemini thinking controls and aligned OpenAI and Gemini requests with
+  each model family's supported reasoning settings.
+- Kept cloud-provider access optional and isolated provider credentials while
+  preserving the existing local-provider workflow.
+
 ## 1.0.7 — 2026-09-15
 
 - Fixed timetable change highlighting when several substitutions share the

@@ -22,10 +22,13 @@ const AI_PROVIDER_KEY = "eeAiProvider";
 const AI_ENDPOINT_KEY = "eeAiEndpoint";
 const AI_MODEL_KEY = "eeAiModel";
 const AI_ACCESS_TOKEN_KEY = "eeAiAccessToken";
-const AI_PROVIDERS = new Set(["ollama", "lmstudio", "nvidia", "openrouter", "gemini"]);
+const AI_REASONING_EFFORT_OPENAI_KEY = "eeAiReasoningEffortOpenai";
+const AI_THINKING_LEVEL_GEMINI_KEY = "eeAiThinkingLevelGemini";
+const AI_PROVIDERS = new Set(["ollama", "lmstudio", "nvidia", "openrouter", "gemini", "openai"]);
 const AI_CLOUD_ENDPOINTS = {
   gemini: "https://generativelanguage.googleapis.com",
   nvidia: "https://integrate.api.nvidia.com",
+  openai: "https://api.openai.com",
   openrouter: "https://openrouter.ai",
 };
 const AI_LOCAL_ENDPOINTS = {
@@ -109,21 +112,31 @@ function normalizeLocalAiEndpoint(value, provider) {
 
 function resolveAiProviderConfig(values = {}) {
   const provider = AI_PROVIDERS.has(values[AI_PROVIDER_KEY]) ? values[AI_PROVIDER_KEY] : "ollama";
-  const model = normalizeAiText(values[AI_MODEL_KEY], 240);
-  const accessToken = normalizeAiText(values[AI_ACCESS_TOKEN_KEY], 500);
+  const suffix = provider.charAt(0).toUpperCase() + provider.slice(1);
+  const providerModelKey = `eeAiModel${suffix}`;
+  const providerApiKey = `eeAiApiKey${suffix}`;
+  const providerEndpointKey = `eeAiEndpoint${suffix}`;
+
+  const model = normalizeAiText(values[providerModelKey] || values[AI_MODEL_KEY], 240);
+  const accessToken = normalizeAiText(values[providerApiKey] || values[AI_ACCESS_TOKEN_KEY], 500);
   if (!model) throw new Error("Choose a model first.");
   if (AI_CLOUD_ENDPOINTS[provider] && !accessToken) {
-    const providerName = { gemini: "Gemini", nvidia: "NVIDIA", openrouter: "OpenRouter" }[provider];
-    throw new Error(`Enter ${provider === "nvidia" ? "an" : "a"} ${providerName} API key first.`);
+    const providerName = { gemini: "Gemini", nvidia: "NVIDIA", openai: "OpenAI", openrouter: "OpenRouter" }[provider];
+    throw new Error(`Enter ${provider === "nvidia" || provider === "openai" ? "an" : "a"} ${providerName} API key first.`);
   }
-  return {
+  const config = {
     provider,
     model,
     accessToken,
     endpoint: AI_CLOUD_ENDPOINTS[provider]
       ? AI_CLOUD_ENDPOINTS[provider]
-      : normalizeLocalAiEndpoint(values[AI_ENDPOINT_KEY], provider),
+      : normalizeLocalAiEndpoint(values[providerEndpointKey] || values[AI_ENDPOINT_KEY], provider),
   };
+  const reasoningEffort = normalizeAiText(values[AI_REASONING_EFFORT_OPENAI_KEY], 40);
+  if (reasoningEffort && reasoningEffort !== "default") config.reasoningEffort = reasoningEffort;
+  const thinkingLevel = normalizeAiText(values[AI_THINKING_LEVEL_GEMINI_KEY], 40);
+  if (thinkingLevel && thinkingLevel !== "default") config.thinkingLevel = thinkingLevel;
+  return config;
 }
 
 function sanitizeAiStringList(value, maxItems = 60) {
@@ -241,18 +254,40 @@ function extractAiMessageContent(data, provider) {
   return "";
 }
 
-function buildGeminiGenerationConfig(model = "") {
+function buildGeminiGenerationConfig(model = "", thinkingLevel = "default") {
   const generationConfig = {
     maxOutputTokens: 1_000,
     responseMimeType: "application/json",
   };
   const modelId = String(model || "").replace(/^models\//, "").toLowerCase();
   if (/^gemini-3(?:[.-]|$)/.test(modelId)) {
-    generationConfig.thinkingConfig = { thinkingLevel: "LOW" };
+    if (thinkingLevel === "off") {
+      generationConfig.thinkingConfig = { thinkingLevel: "MINIMAL" };
+    } else if (thinkingLevel === "low") {
+      generationConfig.thinkingConfig = { thinkingLevel: "LOW" };
+    } else if (thinkingLevel === "high") {
+      generationConfig.thinkingConfig = { thinkingLevel: "HIGH" };
+    }
   } else {
     generationConfig.temperature = 0.1;
-    if (/^gemini-2\.5-flash(?:-lite)?(?:-|$)/.test(modelId)) {
-      generationConfig.thinkingConfig = { thinkingBudget: 0 };
+    if (/^gemini-2\.5-flash(?:-lite)?(?:[.-]|$)/.test(modelId)) {
+      if (thinkingLevel === "high") {
+        generationConfig.thinkingConfig = { thinkingBudget: 2048 };
+      } else if (thinkingLevel === "low") {
+        generationConfig.thinkingConfig = { thinkingBudget: 512 };
+      } else if (thinkingLevel === "off") {
+        generationConfig.thinkingConfig = { thinkingBudget: 0 };
+      }
+    } else if (/^gemini-2\.5-pro(?:[.-]|$)/.test(modelId)) {
+      // Gemini 2.5 Pro does not allow thinking to be disabled (zero budget is rejected with HTTP 400).
+      // Use its minimum supported budget for the UI's lowest setting.
+      if (thinkingLevel === "high") {
+        generationConfig.thinkingConfig = { thinkingBudget: 2048 };
+      } else if (thinkingLevel === "low") {
+        generationConfig.thinkingConfig = { thinkingBudget: 512 };
+      } else if (thinkingLevel === "off") {
+        generationConfig.thinkingConfig = { thinkingBudget: 128 };
+      }
     }
   }
   return generationConfig;
@@ -268,6 +303,44 @@ function buildGeminiHeaders(accessToken) {
   return {
     "Content-Type": "application/json",
     "x-goog-api-key": accessToken,
+  };
+}
+
+function buildOpenAiChatBody(config, prompt) {
+  const modelId = String(config.model || "").toLowerCase();
+  const isOseries = /^o\d/.test(modelId);
+  const isGpt5 = /^gpt-5(?:[.-]|$)/.test(modelId);
+  const isReasoningModel = isOseries || isGpt5;
+  const body = {
+    model: config.model,
+    messages: [{ role: "user", content: prompt }],
+    response_format: { type: "json_object" },
+    max_completion_tokens: 1_000,
+  };
+  if (isReasoningModel) {
+    if (config.reasoningEffort === "off") {
+      const gpt5Minor = modelId.match(/^gpt-5\.(\d+)/);
+      if (gpt5Minor && Number(gpt5Minor[1]) >= 1) {
+        body.reasoning_effort = "none";
+      } else {
+        // Older GPT-5 and o-series models do not support "none".
+        body.reasoning_effort = "low";
+      }
+    } else if (config.reasoningEffort && config.reasoningEffort !== "default") {
+      body.reasoning_effort = config.reasoningEffort;
+    } else {
+      body.reasoning_effort = "low";
+    }
+  } else {
+    body.temperature = 0.1;
+  }
+  return body;
+}
+
+function buildOpenAiHeaders(accessToken) {
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${accessToken}`,
   };
 }
 
@@ -423,14 +496,24 @@ function validateAiSuggestion(raw, question) {
   return suggestion;
 }
 
-async function requestAiQuestionSuggestion(questionInput) {
-  const settings = await storageGet([
+function getAllAiStorageKeys() {
+  return [
     AI_HELPER_ENABLED_KEY,
     AI_PROVIDER_KEY,
     AI_ENDPOINT_KEY,
     AI_MODEL_KEY,
     AI_ACCESS_TOKEN_KEY,
-  ]);
+    AI_REASONING_EFFORT_OPENAI_KEY,
+    AI_THINKING_LEVEL_GEMINI_KEY,
+    ...Array.from(AI_PROVIDERS).flatMap((p) => {
+      const s = p.charAt(0).toUpperCase() + p.slice(1);
+      return [`eeAiApiKey${s}`, `eeAiModel${s}`, `eeAiEndpoint${s}`];
+    }),
+  ];
+}
+
+async function requestAiQuestionSuggestion(questionInput) {
+  const settings = await storageGet(getAllAiStorageKeys());
   if (settings[AI_HELPER_ENABLED_KEY] !== true) throw new Error("Test Question Helper is disabled.");
   const config = resolveAiProviderConfig(settings);
   const question = sanitizeAiQuestion(questionInput);
@@ -452,8 +535,12 @@ async function requestAiQuestionSuggestion(questionInput) {
     headers = buildGeminiHeaders(config.accessToken);
     body = {
       contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: buildGeminiGenerationConfig(config.model),
+      generationConfig: buildGeminiGenerationConfig(config.model, config.thinkingLevel),
     };
+  } else if (config.provider === "openai") {
+    url = `${config.endpoint}/v1/chat/completions`;
+    headers = buildOpenAiHeaders(config.accessToken);
+    body = buildOpenAiChatBody(config, prompt);
   } else {
     url = config.provider === "openrouter"
       ? "https://openrouter.ai/api/v1/chat/completions"
@@ -486,13 +573,32 @@ async function requestAiQuestionSuggestion(questionInput) {
   }
 }
 
+function isOpenAiModelAvailable(configuredModel, availableModelIds) {
+  const target = normalizeAiText(configuredModel, 240).toLowerCase();
+  if (!target || !Array.isArray(availableModelIds)) return false;
+  const set = new Set(availableModelIds.map((id) => normalizeAiText(id, 240).toLowerCase()));
+  if (set.has(target)) return true;
+
+  // Accept a configured base model if an exact dated snapshot (e.g. model-YYYY-MM-DD) exists
+  const escapedTarget = target.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const datedPattern = new RegExp(`^${escapedTarget}-\\d{4}-\\d{2}-\\d{2}$`);
+  for (const id of set) {
+    if (datedPattern.test(id)) return true;
+  }
+
+  return false;
+}
+
 async function testAiProviderConnection() {
-  const settings = await storageGet([AI_PROVIDER_KEY, AI_ENDPOINT_KEY, AI_MODEL_KEY, AI_ACCESS_TOKEN_KEY]);
+  const settings = await storageGet(getAllAiStorageKeys());
   const config = resolveAiProviderConfig(settings);
   let url;
   let headers = {};
   if (config.provider === "openrouter") {
     url = "https://openrouter.ai/api/v1/key";
+    headers.Authorization = `Bearer ${config.accessToken}`;
+  } else if (config.provider === "openai") {
+    url = "https://api.openai.com/v1/models";
     headers.Authorization = `Bearer ${config.accessToken}`;
   } else if (config.provider === "nvidia") {
     const data = await fetchAiJson("https://integrate.api.nvidia.com/v1/chat/completions", {
@@ -523,6 +629,13 @@ async function testAiProviderConnection() {
   if (config.provider === "gemini") {
     const returnedModel = normalizeAiText(data?.name, 240).replace(/^models\//, "");
     if (returnedModel !== config.model.replace(/^models\//, "")) {
+      throw new Error("The configured model is not available for this API key.");
+    }
+  } else if (config.provider === "openai") {
+    const models = data?.data;
+    if (!Array.isArray(models)) throw new Error("The provider returned an unreadable model list.");
+    const names = models.map((m) => normalizeAiText(m?.id, 240));
+    if (!isOpenAiModelAvailable(config.model, names)) {
       throw new Error("The configured model is not available for this API key.");
     }
   } else if (config.provider !== "openrouter") {
@@ -2005,6 +2118,9 @@ if (globalThis.__EE_TEST__) {
     buildGeminiGenerationConfig,
     buildGeminiHeaders,
     buildGeminiModelUrl,
+    buildOpenAiChatBody,
+    buildOpenAiHeaders,
+    isOpenAiModelAvailable,
     parseAiJsonObject,
     validateAiSuggestion,
     normalizeAiFillIns,

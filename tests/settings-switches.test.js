@@ -88,6 +88,10 @@ runTest("Test Question Helper stays opt-in inside Experimental", () => {
   assert.match(html, /value="nvidia"/);
   assert.match(html, /value="openrouter"/);
   assert.match(html, /value="gemini"/);
+  assert.match(html, /value="openai"/);
+  assert.match(html, /id="AiModelSelect"/);
+  assert.match(html, /id="AiReasoningEffortSelect"/);
+  assert.match(html, /id="AiThinkingLevelSelect"/);
   assert.match(html, /id="OpenAiShortcutSettingsButton"/);
   assert.match(html, /id="AiHelperMessagesCheckbox"/);
   assert.match(html, /id="AiAnswerModeSelect"/);
@@ -96,6 +100,7 @@ runTest("Test Question Helper stays opt-in inside Experimental", () => {
   assert.match(settingsScript, /suggest-test-question/);
   assert.match(settingsScript, /const AI_ANSWER_MODE_KEY = "eeAiAnswerMode"/);
   assert.match(settingsScript, /if \(provider === "gemini"\) return "https:\/\/generativelanguage\.googleapis\.com\/\*"/);
+  assert.match(settingsScript, /if \(provider === "openai"\) return "https:\/\/api\.openai\.com\/\*"/);
   assert.match(settingsScript, /aiQuestionHelperToggle\.checked = result\[AI_HELPER_ENABLED_KEY\] === true/);
   assert.match(settingsScript, /aiHelperMessagesToggle\.checked = result\[AI_HELPER_MESSAGES_KEY\] === true/);
 });

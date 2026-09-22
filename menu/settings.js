@@ -89,7 +89,15 @@ const aiVisualFallbackToggle = document.getElementById("AiVisualFallbackCheckbox
 const aiProviderSelect = document.getElementById("AiProviderSelect");
 const aiEndpointRow = document.getElementById("AiEndpointRow");
 const aiEndpointInput = document.getElementById("AiEndpointInput");
+const aiModelSelectRow = document.getElementById("AiModelSelectRow");
+const aiModelSelect = document.getElementById("AiModelSelect");
+const aiModelInputRow = document.getElementById("AiModelInputRow");
+const aiModelInputHeading = document.getElementById("AiModelInputHeading");
 const aiModelInput = document.getElementById("AiModelInput");
+const aiReasoningEffortRow = document.getElementById("AiReasoningEffortRow");
+const aiReasoningEffortSelect = document.getElementById("AiReasoningEffortSelect");
+const aiThinkingLevelRow = document.getElementById("AiThinkingLevelRow");
+const aiThinkingLevelSelect = document.getElementById("AiThinkingLevelSelect");
 const aiAccessTokenRow = document.getElementById("AiAccessTokenRow");
 const aiAccessTokenInput = document.getElementById("AiAccessTokenInput");
 const aiTestConnectionButton = document.getElementById("AiTestConnectionButton");
@@ -154,11 +162,55 @@ const AI_PROVIDER_KEY = "eeAiProvider";
 const AI_ENDPOINT_KEY = "eeAiEndpoint";
 const AI_MODEL_KEY = "eeAiModel";
 const AI_ACCESS_TOKEN_KEY = "eeAiAccessToken";
+const AI_REASONING_EFFORT_OPENAI_KEY = "eeAiReasoningEffortOpenai";
+const AI_THINKING_LEVEL_GEMINI_KEY = "eeAiThinkingLevelGemini";
 const AI_DEFAULT_ENDPOINTS = {
 	ollama: "http://127.0.0.1:11434",
 	lmstudio: "http://127.0.0.1:1234",
 };
-const AI_CLOUD_PROVIDERS = new Set(["nvidia", "openrouter", "gemini"]);
+const AI_CLOUD_PROVIDERS = new Set(["nvidia", "openrouter", "gemini", "openai"]);
+
+function getProviderApiKeyStorageKey(provider) {
+	const suffix = provider.charAt(0).toUpperCase() + provider.slice(1);
+	return `eeAiApiKey${suffix}`;
+}
+
+function getProviderModelStorageKey(provider) {
+	const suffix = provider.charAt(0).toUpperCase() + provider.slice(1);
+	return `eeAiModel${suffix}`;
+}
+
+function getProviderEndpointStorageKey(provider) {
+	const suffix = provider.charAt(0).toUpperCase() + provider.slice(1);
+	return `eeAiEndpoint${suffix}`;
+}
+
+const AI_MODEL_PRESETS = {
+	openai: [
+		{ id: "gpt-5.6-terra", label: "GPT-5.6 Terra" },
+		{ id: "gpt-5.6-luna", label: "GPT-5.6 Luna" },
+		{ id: "gpt-5.6-sol", label: "GPT-5.6 Sol" },
+		{ id: "gpt-5.5", label: "GPT-5.5" },
+		{ id: "gpt-4o-mini", label: "GPT-4o Mini" },
+		{ id: "gpt-4o", label: "GPT-4o" },
+		{ id: "o3-mini", label: "o3-mini" },
+	],
+	gemini: [
+		{ id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+		{ id: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash-Lite" },
+		{ id: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+		{ id: "gemini-3-flash-preview", label: "Gemini 3 Flash Preview" },
+	],
+};
+
+const AI_DEFAULT_MODELS = {
+	openai: "gpt-5.6-terra",
+	gemini: "gemini-2.5-flash",
+	nvidia: "nvidia/llama-3.3-nemotron-super-49b-v1",
+	openrouter: "openai/gpt-4o-mini",
+	ollama: "qwen2.5:7b",
+	lmstudio: "qwen2.5:7b",
+};
 const TESTING_SITE_URL = "https://edublurtesting.ct.ws/";
 const TESTING_SITE_PERMISSION = "https://edublurtesting.ct.ws/*";
 const activityShieldSettings = [
@@ -353,9 +405,24 @@ function updateDependentControls() {
 	if (aiEndpointRow) aiEndpointRow.hidden = !aiEnabled || AI_CLOUD_PROVIDERS.has(aiProvider);
 	if (aiAccessTokenRow) aiAccessTokenRow.hidden = !aiEnabled || aiProvider === "ollama";
 	if (aiEndpointInput) aiEndpointInput.disabled = !aiEnabled || AI_CLOUD_PROVIDERS.has(aiProvider);
-	if (aiModelInput) aiModelInput.disabled = !aiEnabled;
 	if (aiAccessTokenInput) aiAccessTokenInput.disabled = !aiEnabled || aiProvider === "ollama";
 	if (aiTestConnectionButton) aiTestConnectionButton.disabled = !aiEnabled;
+
+	const hasPresets = Object.hasOwn(AI_MODEL_PRESETS, aiProvider);
+	if (aiModelSelectRow) aiModelSelectRow.hidden = !aiEnabled || !hasPresets;
+	if (aiModelSelect) aiModelSelect.disabled = !aiEnabled;
+	const isCustom = !hasPresets || aiModelSelect?.value === "custom";
+	if (aiModelInputRow) aiModelInputRow.hidden = !aiEnabled || (!isCustom && hasPresets);
+	if (aiModelInput) aiModelInput.disabled = !aiEnabled;
+	if (aiModelInputHeading) {
+		aiModelInputHeading.textContent = hasPresets ? t("aiCustomModel") : t("aiModel");
+	}
+
+	if (aiReasoningEffortRow) aiReasoningEffortRow.hidden = !aiEnabled || aiProvider !== "openai";
+	if (aiReasoningEffortSelect) aiReasoningEffortSelect.disabled = !aiEnabled || aiProvider !== "openai";
+
+	if (aiThinkingLevelRow) aiThinkingLevelRow.hidden = !aiEnabled || aiProvider !== "gemini";
+	if (aiThinkingLevelSelect) aiThinkingLevelSelect.disabled = !aiEnabled || aiProvider !== "gemini";
 }
 
 function updateTimetableExportVisibility() {
@@ -1070,16 +1137,40 @@ function setAiConnectionStatus(message, isError = false) {
 	aiConnectionStatus.style.color = isError ? "var(--danger-color)" : "var(--accent-color)";
 }
 
+function getActiveAiModel() {
+	const provider = aiProviderSelect?.value || "ollama";
+	const presets = AI_MODEL_PRESETS[provider];
+	if (presets) {
+		if (aiModelSelect?.value === "custom") {
+			return aiModelInput?.value.trim() || "";
+		}
+		return aiModelSelect?.value || presets[0].id;
+	}
+	return aiModelInput?.value.trim() || "";
+}
+
 function currentAiSettings() {
+	const provider = aiProviderSelect?.value || "ollama";
+	const model = getActiveAiModel();
+	const token = aiAccessTokenInput?.value.trim() || "";
+	const endpoint = aiEndpointInput?.value.trim() || "";
+	const reasoning = aiReasoningEffortSelect?.value || "default";
+	const thinking = aiThinkingLevelSelect?.value || "default";
+
 	return {
 		[AI_HELPER_ENABLED_KEY]: aiQuestionHelperToggle?.checked === true,
 		[AI_HELPER_MESSAGES_KEY]: aiHelperMessagesToggle?.checked === true,
 		[AI_ANSWER_MODE_KEY]: aiAnswerModeSelect?.value || "buttons",
 		[AI_VISUAL_FALLBACK_KEY]: aiVisualFallbackToggle?.checked === true,
-		[AI_PROVIDER_KEY]: aiProviderSelect?.value || "ollama",
-		[AI_ENDPOINT_KEY]: aiEndpointInput?.value.trim() || "",
-		[AI_MODEL_KEY]: aiModelInput?.value.trim() || "",
-		[AI_ACCESS_TOKEN_KEY]: aiAccessTokenInput?.value.trim() || "",
+		[AI_PROVIDER_KEY]: provider,
+		[AI_ENDPOINT_KEY]: endpoint,
+		[AI_MODEL_KEY]: model,
+		[AI_ACCESS_TOKEN_KEY]: token,
+		[getProviderApiKeyStorageKey(provider)]: token,
+		[getProviderModelStorageKey(provider)]: model,
+		[getProviderEndpointStorageKey(provider)]: endpoint,
+		[AI_REASONING_EFFORT_OPENAI_KEY]: reasoning,
+		[AI_THINKING_LEVEL_GEMINI_KEY]: thinking,
 	};
 }
 
@@ -1092,6 +1183,7 @@ function getAiPermissionPattern() {
 	if (provider === "openrouter") return "https://openrouter.ai/*";
 	if (provider === "nvidia") return "https://integrate.api.nvidia.com/*";
 	if (provider === "gemini") return "https://generativelanguage.googleapis.com/*";
+	if (provider === "openai") return "https://api.openai.com/*";
 	let endpoint;
 	try {
 		endpoint = new URL(aiEndpointInput?.value.trim() || AI_DEFAULT_ENDPOINTS[provider]);
@@ -1340,18 +1432,80 @@ if (etestIncludeImagesToggle) {
 	});
 }
 
+const ALL_AI_STORAGE_KEYS = [
+	AI_HELPER_ENABLED_KEY,
+	AI_HELPER_MESSAGES_KEY,
+	AI_ANSWER_MODE_KEY,
+	AI_VISUAL_FALLBACK_KEY,
+	AI_PROVIDER_KEY,
+	AI_ENDPOINT_KEY,
+	AI_MODEL_KEY,
+	AI_ACCESS_TOKEN_KEY,
+	AI_REASONING_EFFORT_OPENAI_KEY,
+	AI_THINKING_LEVEL_GEMINI_KEY,
+	...Array.from(AI_CLOUD_PROVIDERS).flatMap((p) => [getProviderApiKeyStorageKey(p), getProviderModelStorageKey(p), getProviderEndpointStorageKey(p)]),
+	...["ollama", "lmstudio"].flatMap((p) => [getProviderApiKeyStorageKey(p), getProviderModelStorageKey(p), getProviderEndpointStorageKey(p)]),
+];
+
+function renderAiModelOptions(provider, selectedModel) {
+	if (!aiModelSelect) return;
+	const presets = AI_MODEL_PRESETS[provider];
+	if (!presets) {
+		aiModelSelect.innerHTML = "";
+		if (aiModelInput) aiModelInput.value = selectedModel || "";
+		return;
+	}
+	aiModelSelect.innerHTML = "";
+	presets.forEach(({ id, label }) => {
+		const option = document.createElement("option");
+		option.value = id;
+		option.textContent = label;
+		aiModelSelect.appendChild(option);
+	});
+	const customOption = document.createElement("option");
+	customOption.value = "custom";
+	customOption.textContent = t("aiCustomModel") || "Custom…";
+	aiModelSelect.appendChild(customOption);
+
+	const isPreset = presets.some((p) => p.id === selectedModel);
+	if (isPreset) {
+		aiModelSelect.value = selectedModel;
+		if (aiModelInput) aiModelInput.value = "";
+	} else if (selectedModel) {
+		aiModelSelect.value = "custom";
+		if (aiModelInput) aiModelInput.value = selectedModel;
+	} else {
+		aiModelSelect.value = presets[0].id;
+		if (aiModelInput) aiModelInput.value = "";
+	}
+}
+
+function applyProviderToUi(provider, stored) {
+	if (aiProviderSelect) aiProviderSelect.value = provider;
+	const apiKeyKey = getProviderApiKeyStorageKey(provider);
+	const modelKey = getProviderModelStorageKey(provider);
+	const endpointKey = getProviderEndpointStorageKey(provider);
+
+	const apiKey = stored[apiKeyKey] ?? (stored[AI_PROVIDER_KEY] === provider ? stored[AI_ACCESS_TOKEN_KEY] : "") ?? "";
+	if (aiAccessTokenInput) aiAccessTokenInput.value = apiKey;
+
+	const model = stored[modelKey] ?? (stored[AI_PROVIDER_KEY] === provider ? stored[AI_MODEL_KEY] : "") ?? AI_DEFAULT_MODELS[provider] ?? "";
+	renderAiModelOptions(provider, model);
+
+	const endpoint = stored[endpointKey] ?? (stored[AI_PROVIDER_KEY] === provider ? stored[AI_ENDPOINT_KEY] : "") ?? AI_DEFAULT_ENDPOINTS[provider] ?? "";
+	if (aiEndpointInput) aiEndpointInput.value = endpoint;
+
+	if (aiReasoningEffortSelect) {
+		aiReasoningEffortSelect.value = stored[AI_REASONING_EFFORT_OPENAI_KEY] || "default";
+	}
+	if (aiThinkingLevelSelect) {
+		aiThinkingLevelSelect.value = stored[AI_THINKING_LEVEL_GEMINI_KEY] || "default";
+	}
+}
+
 if (aiQuestionHelperToggle) {
-	chrome.storage.local.get([
-		AI_HELPER_ENABLED_KEY,
-		AI_HELPER_MESSAGES_KEY,
-		AI_ANSWER_MODE_KEY,
-		AI_VISUAL_FALLBACK_KEY,
-		AI_PROVIDER_KEY,
-		AI_ENDPOINT_KEY,
-		AI_MODEL_KEY,
-		AI_ACCESS_TOKEN_KEY,
-	], (result) => {
-		const provider = ["ollama", "lmstudio", "nvidia", "openrouter", "gemini"].includes(result[AI_PROVIDER_KEY])
+	chrome.storage.local.get(ALL_AI_STORAGE_KEYS, (result) => {
+		const provider = ["ollama", "lmstudio", "nvidia", "openrouter", "gemini", "openai"].includes(result[AI_PROVIDER_KEY])
 			? result[AI_PROVIDER_KEY]
 			: "ollama";
 		aiQuestionHelperToggle.checked = result[AI_HELPER_ENABLED_KEY] === true;
@@ -1362,10 +1516,7 @@ if (aiQuestionHelperToggle) {
 				: "buttons";
 		}
 		if (aiVisualFallbackToggle) aiVisualFallbackToggle.checked = result[AI_VISUAL_FALLBACK_KEY] === true;
-		if (aiProviderSelect) aiProviderSelect.value = provider;
-		if (aiEndpointInput) aiEndpointInput.value = result[AI_ENDPOINT_KEY] || AI_DEFAULT_ENDPOINTS[provider] || "";
-		if (aiModelInput) aiModelInput.value = result[AI_MODEL_KEY] || "";
-		if (aiAccessTokenInput) aiAccessTokenInput.value = result[AI_ACCESS_TOKEN_KEY] || "";
+		applyProviderToUi(provider, result);
 		updateDependentControls();
 	});
 	aiQuestionHelperToggle.addEventListener("change", () => {
@@ -1390,10 +1541,36 @@ aiVisualFallbackToggle?.addEventListener("change", () => {
 
 aiProviderSelect?.addEventListener("change", () => {
 	const provider = aiProviderSelect.value;
-	if (aiEndpointInput && AI_DEFAULT_ENDPOINTS[provider]) aiEndpointInput.value = AI_DEFAULT_ENDPOINTS[provider];
+	chrome.storage.local.get(ALL_AI_STORAGE_KEYS, (stored) => {
+		applyProviderToUi(provider, stored);
+		saveAiSettings();
+		setAiConnectionStatus("");
+		updateDependentControls();
+	});
+});
+
+aiModelSelect?.addEventListener("change", () => {
+	if (aiModelSelect.value === "custom") {
+		if (aiModelInput) {
+			aiModelInput.value = "";
+			aiModelInput.focus();
+		}
+	} else if (aiModelInput) {
+		aiModelInput.value = "";
+	}
 	saveAiSettings();
 	setAiConnectionStatus("");
 	updateDependentControls();
+});
+
+aiReasoningEffortSelect?.addEventListener("change", () => {
+	saveAiSettings();
+	setAiConnectionStatus("");
+});
+
+aiThinkingLevelSelect?.addEventListener("change", () => {
+	saveAiSettings();
+	setAiConnectionStatus("");
 });
 
 [aiEndpointInput, aiModelInput, aiAccessTokenInput].forEach((input) => {

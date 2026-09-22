@@ -188,6 +188,9 @@ runTest("AI provider configuration only accepts fixed cloud origins or loopback 
     buildGeminiGenerationConfig,
     buildGeminiHeaders,
     buildGeminiModelUrl,
+    buildOpenAiChatBody,
+    buildOpenAiHeaders,
+    isOpenAiModelAvailable,
   } = loadBackgroundInternals();
 
   assert.equal(normalizeLocalAiEndpoint("http://localhost:11434", "ollama"), "http://localhost:11434");
@@ -196,6 +199,7 @@ runTest("AI provider configuration only accepts fixed cloud origins or loopback 
   assert.throws(() => resolveAiProviderConfig({ eeAiProvider: "openrouter", eeAiModel: "openai/model" }), /API key/);
   assert.throws(() => resolveAiProviderConfig({ eeAiProvider: "nvidia", eeAiModel: "nvidia/model" }), /API key/);
   assert.throws(() => resolveAiProviderConfig({ eeAiProvider: "gemini", eeAiModel: "gemini-3-flash" }), /API key/);
+  assert.throws(() => resolveAiProviderConfig({ eeAiProvider: "openai", eeAiModel: "gpt-5.6-terra" }), /API key/);
   assert.deepEqual(
     JSON.parse(JSON.stringify(resolveAiProviderConfig({
       eeAiProvider: "openrouter",
@@ -233,6 +237,54 @@ runTest("AI provider configuration only accepts fixed cloud origins or loopback 
     accessToken: "secret",
     endpoint: "https://generativelanguage.googleapis.com",
   });
+
+  const openai = resolveAiProviderConfig({
+    eeAiProvider: "openai",
+    eeAiModelOpenai: "gpt-5.6-terra",
+    eeAiApiKeyOpenai: "sk-secret",
+    eeAiReasoningEffortOpenai: "medium",
+  });
+  assert.deepEqual(JSON.parse(JSON.stringify(openai)), {
+    provider: "openai",
+    model: "gpt-5.6-terra",
+    accessToken: "sk-secret",
+    endpoint: "https://api.openai.com",
+    reasoningEffort: "medium",
+  });
+
+  assert.deepEqual(JSON.parse(JSON.stringify(buildOpenAiHeaders("sk-secret"))), {
+    "Content-Type": "application/json",
+    Authorization: "Bearer sk-secret",
+  });
+
+  const standardOpenAiBody = buildOpenAiChatBody({ model: "gpt-4o-mini" }, "Answer this");
+  assert.equal(standardOpenAiBody.model, "gpt-4o-mini");
+  assert.equal(standardOpenAiBody.temperature, 0.1);
+  assert.equal(standardOpenAiBody.max_completion_tokens, 1_000);
+  assert.deepEqual(JSON.parse(JSON.stringify(standardOpenAiBody.response_format)), { type: "json_object" });
+
+  const reasoningOpenAiBody = buildOpenAiChatBody({ model: "gpt-5.6-terra", reasoningEffort: "high" }, "Answer this");
+  assert.equal(reasoningOpenAiBody.model, "gpt-5.6-terra");
+  assert.equal(reasoningOpenAiBody.reasoning_effort, "high");
+  assert.equal(reasoningOpenAiBody.temperature, undefined);
+  assert.equal(reasoningOpenAiBody.max_completion_tokens, 1_000);
+  assert.equal(
+    buildOpenAiChatBody({ model: "gpt-5.6-terra", reasoningEffort: "off" }, "Answer this").reasoning_effort,
+    "none",
+  );
+  assert.equal(
+    buildOpenAiChatBody({ model: "gpt-5", reasoningEffort: "off" }, "Answer this").reasoning_effort,
+    "low",
+  );
+  assert.equal(
+    buildOpenAiChatBody({ model: "o3-mini", reasoningEffort: "off" }, "Answer this").reasoning_effort,
+    "low",
+  );
+  assert.equal(isOpenAiModelAvailable("gpt-5.6-terra", ["gpt-5.6-terra"]), true);
+  assert.equal(isOpenAiModelAvailable("gpt-5.6-terra", ["gpt-5.6-terra-2026-09-01"]), true);
+  assert.equal(isOpenAiModelAvailable("gpt-5.6-terraa", ["gpt-5.6-terra"]), false);
+  assert.equal(isOpenAiModelAvailable("gpt-5.6-terra-2099-01-01", ["gpt-5.6-terra"]), false);
+
   const geminiUrl = new URL(buildGeminiModelUrl(gemini, "generateContent"));
   assert.equal(geminiUrl.pathname, "/v1beta/models/gemini-3-flash-preview:generateContent");
   assert.equal(geminiUrl.search, "", "Gemini keys must use the request header, not the URL");
@@ -243,13 +295,44 @@ runTest("AI provider configuration only accepts fixed cloud origins or loopback 
   assert.deepEqual(JSON.parse(JSON.stringify(buildGeminiGenerationConfig("gemini-3-flash-preview"))), {
     maxOutputTokens: 1_000,
     responseMimeType: "application/json",
-    thinkingConfig: { thinkingLevel: "LOW" },
+  });
+  assert.deepEqual(JSON.parse(JSON.stringify(buildGeminiGenerationConfig("gemini-3-flash-preview", "off"))), {
+    maxOutputTokens: 1_000,
+    responseMimeType: "application/json",
+    thinkingConfig: { thinkingLevel: "MINIMAL" },
+  });
+  assert.deepEqual(JSON.parse(JSON.stringify(buildGeminiGenerationConfig("gemini-3-flash-preview", "high"))), {
+    maxOutputTokens: 1_000,
+    responseMimeType: "application/json",
+    thinkingConfig: { thinkingLevel: "HIGH" },
   });
   assert.deepEqual(JSON.parse(JSON.stringify(buildGeminiGenerationConfig("gemini-2.5-flash"))), {
     maxOutputTokens: 1_000,
     responseMimeType: "application/json",
     temperature: 0.1,
+  });
+  assert.deepEqual(JSON.parse(JSON.stringify(buildGeminiGenerationConfig("gemini-2.5-flash", "off"))), {
+    maxOutputTokens: 1_000,
+    responseMimeType: "application/json",
+    temperature: 0.1,
     thinkingConfig: { thinkingBudget: 0 },
+  });
+  assert.deepEqual(JSON.parse(JSON.stringify(buildGeminiGenerationConfig("gemini-2.5-flash", "high"))), {
+    maxOutputTokens: 1_000,
+    responseMimeType: "application/json",
+    temperature: 0.1,
+    thinkingConfig: { thinkingBudget: 2048 },
+  });
+  assert.deepEqual(JSON.parse(JSON.stringify(buildGeminiGenerationConfig("gemini-2.5-pro"))), {
+    maxOutputTokens: 1_000,
+    responseMimeType: "application/json",
+    temperature: 0.1,
+  });
+  assert.deepEqual(JSON.parse(JSON.stringify(buildGeminiGenerationConfig("gemini-2.5-pro", "off"))), {
+    maxOutputTokens: 1_000,
+    responseMimeType: "application/json",
+    temperature: 0.1,
+    thinkingConfig: { thinkingBudget: 128 },
   });
 });
 
@@ -425,6 +508,8 @@ runTest("AI access keys are excluded from diagnostics settings", () => {
   const { DIAGNOSTICS_SECRET_PATTERN } = loadBackgroundInternals();
   assert.equal(DIAGNOSTICS_SECRET_PATTERN.test("eeAiAccessToken"), true);
   assert.equal(DIAGNOSTICS_SECRET_PATTERN.test("openRouterApiKey"), true);
+  assert.equal(DIAGNOSTICS_SECRET_PATTERN.test("eeAiApiKeyOpenai"), true);
+  assert.equal(DIAGNOSTICS_SECRET_PATTERN.test("eeAiApiKeyGemini"), true);
 });
 
 runTest("template weeks prefer a later recurring slot over an earlier one-off variant", () => {

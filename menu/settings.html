@@ -712,7 +712,7 @@
               <div class="setting-row">
                 <div>
                   <h3 data-i18n="aiProvider">Provider</h3>
-                  <p data-i18n="aiProviderDesc">Ollama and LM Studio stay on this computer. NVIDIA, OpenRouter, and Gemini send question text to their hosted models.</p>
+                  <p data-i18n="aiProviderDesc">Ollama and LM Studio stay on this computer. NVIDIA, OpenRouter, Gemini, and OpenAI send question text to their hosted models.</p>
                 </div>
                 <label class="select-control" for="AiProviderSelect">
                   <span class="sr-only" data-i18n="aiProvider">Provider</span>
@@ -722,6 +722,7 @@
                     <option value="nvidia">NVIDIA</option>
                     <option value="openrouter">OpenRouter</option>
                     <option value="gemini">Google Gemini</option>
+                    <option value="openai">OpenAI</option>
                   </select>
                 </label>
               </div>
@@ -735,19 +736,63 @@
                 <input id="AiEndpointInput" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="http://127.0.0.1:11434">
               </div>
 
-              <div class="setting-row setting-row-stack">
+              <div class="setting-row" id="AiModelSelectRow" hidden>
                 <div>
                   <h3 data-i18n="aiModel">Model</h3>
+                  <p data-i18n="aiModelDesc">Use the exact model identifier shown by your provider.</p>
+                </div>
+                <label class="select-control" for="AiModelSelect">
+                  <span class="sr-only" data-i18n="aiModel">Model</span>
+                  <select id="AiModelSelect"></select>
+                </label>
+              </div>
+
+              <div class="setting-row setting-row-stack" id="AiModelInputRow">
+                <div>
+                  <h3 id="AiModelInputHeading" data-i18n="aiModel">Model</h3>
                   <p data-i18n="aiModelDesc">Use the exact model identifier shown by your provider.</p>
                 </div>
                 <label class="sr-only" for="AiModelInput" data-i18n="aiModel">Model</label>
                 <input id="AiModelInput" type="text" autocomplete="off" spellcheck="false" placeholder="qwen3:8b">
               </div>
 
+              <div class="setting-row" id="AiReasoningEffortRow" hidden>
+                <div>
+                  <h3 data-i18n="aiReasoningEffort">Reasoning effort</h3>
+                  <p data-i18n="aiReasoningEffortDesc">Set reasoning depth for OpenAI models that support reasoning.</p>
+                </div>
+                <label class="select-control" for="AiReasoningEffortSelect">
+                  <span class="sr-only" data-i18n="aiReasoningEffort">Reasoning effort</span>
+                  <select id="AiReasoningEffortSelect">
+                    <option value="default" data-i18n="aiOptionDefault">Default</option>
+                    <option value="low" data-i18n="aiOptionLow">Low (fast)</option>
+                    <option value="medium" data-i18n="aiOptionMedium">Medium</option>
+                    <option value="high" data-i18n="aiOptionHigh">High (thorough)</option>
+                    <option value="off" data-i18n="aiOptionOff">Lowest / off when supported</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="setting-row" id="AiThinkingLevelRow" hidden>
+                <div>
+                  <h3 data-i18n="aiThinkingLevel">Thinking level</h3>
+                  <p data-i18n="aiThinkingLevelDesc">Control Gemini reasoning depth before answering.</p>
+                </div>
+                <label class="select-control" for="AiThinkingLevelSelect">
+                  <span class="sr-only" data-i18n="aiThinkingLevel">Thinking level</span>
+                  <select id="AiThinkingLevelSelect">
+                    <option value="default" data-i18n="aiOptionDefault">Default</option>
+                    <option value="low" data-i18n="aiOptionLow">Low (fast)</option>
+                    <option value="high" data-i18n="aiOptionHigh">High (thorough)</option>
+                    <option value="off" data-i18n="aiOptionOff">Lowest / off when supported</option>
+                  </select>
+                </label>
+              </div>
+
               <div class="setting-row setting-row-stack" id="AiAccessTokenRow" hidden>
                 <div>
                   <h3 data-i18n="aiAccessToken">API key or access token</h3>
-                  <p data-i18n="aiAccessTokenDesc">Required for NVIDIA, OpenRouter, and Gemini; optional for protected LM Studio servers. Stored in this browser profile and never exposed to EduPage.</p>
+                  <p data-i18n="aiAccessTokenDesc">Required for NVIDIA, OpenRouter, Gemini, and OpenAI; optional for protected LM Studio servers. Stored in this browser profile and never exposed to EduPage.</p>
                 </div>
                 <label class="sr-only" for="AiAccessTokenInput" data-i18n="aiAccessToken">API key or access token</label>
                 <input id="AiAccessTokenInput" type="password" autocomplete="off" spellcheck="false">
