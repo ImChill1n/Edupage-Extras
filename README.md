@@ -96,6 +96,12 @@ EduPage, open a GitHub issue or report it on [Discord](https://discord.gg/eNZXHe
 - **Export to .ics** — download the current week or the whole half-year as a
   standard calendar file, importable into calendar apps.
 
+### Experimental
+
+Experimental settings include a **Test Stay Active Mode** button below the Stay Active
+master switch. It opens a new tab; the destination is temporarily Google until
+the shield testing URL is ready.
+
 ### Keyboard shortcuts
 
 Some features can be bound on the browser's extension-shortcuts page.

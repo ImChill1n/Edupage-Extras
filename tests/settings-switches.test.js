@@ -100,11 +100,12 @@ runTest("Test Question Helper stays opt-in inside Experimental", () => {
   assert.match(settingsScript, /aiHelperMessagesToggle\.checked = result\[AI_HELPER_MESSAGES_KEY\] === true/);
 });
 
-runTest("the Stay Active test site asks for optional access before opening", () => {
-  assert.match(html, /<button class="inline-link inline-link-button" id="OpenTestingSiteButton" type="button"/);
-  assert.match(settingsScript, /const TESTING_SITE_PERMISSION = "https:\/\/edublurtesting\.ct\.ws\/\*";/);
-  assert.match(settingsScript, /chrome\.permissions\.request\(\{ origins: \[TESTING_SITE_PERMISSION\] \}/);
-  assert.match(settingsScript, /chrome\.tabs\.create\(\{ url: TESTING_SITE_URL \}\)/);
+runTest("Stay Active testing opens a placeholder tab below the master switch", () => {
+  assert.doesNotMatch(html, /OpenTestingSiteButton|experimentalSubtitle/);
+  assert.doesNotMatch(settingsScript, /openTestingSiteButton|TESTING_SITE_URL|TESTING_SITE_PERMISSION/);
+  assert.match(html, /id="ee-test-shields" href="https:\/\/google\.com" target="_blank" rel="noopener noreferrer" data-i18n="samTestShields"/);
+  assert.ok(html.indexOf('id="ee-test-shields"') > html.indexOf('id="ActivityShieldEnabled"'));
+  assert.ok(html.indexOf('id="ee-test-shields"') < html.indexOf('id="spoofing-heading"'));
 });
 
 runTest("optional export tools are opt-in", () => {

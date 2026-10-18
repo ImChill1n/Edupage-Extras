@@ -99,17 +99,6 @@
       "match_about_blank": true
     },
     {
-      "matches": [
-        "https://*.edupage.org/*",
-        "https://edublurtesting.ct.ws/*"
-      ],
-      "js": ["scripts/activity-shield-main.js"],
-      "run_at": "document_start",
-      "all_frames": true,
-      "match_about_blank": true,
-      "world": "MAIN"
-    },
-    {
       "matches": ["https://*.edupage.org/*"],
       "js": ["scripts/etest-answer-bridge.js"],
       "run_at": "document_start",
@@ -118,7 +107,19 @@
       "world": "MAIN"
     },
     {
-      "matches": ["https://edublurtesting.ct.ws/*"],
+      "matches": [
+        "https://*.edupage.org/*",
+        "https://edublurtesting.ct.ws/*",
+        "https://test.nop.wtf/*"
+      ],
+      "js": ["scripts/activity-shield-main.js"],
+      "run_at": "document_start",
+      "all_frames": true,
+      "match_about_blank": true,
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://edublurtesting.ct.ws/*", "https://test.nop.wtf/*"],
       "js": ["scripts/activity-shield-bridge.js"],
       "run_at": "document_start",
       "all_frames": true,
