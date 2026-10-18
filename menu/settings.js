@@ -1161,7 +1161,7 @@ if (resetActivityShieldButton) {
 
 if (reloadEdupageTabsButton) {
 	reloadEdupageTabsButton.addEventListener("click", () => {
-		chrome.tabs.query({ url: "https://*.edupage.org/*" }, (tabs) => {
+		chrome.tabs.query({ url: ["https://*.edupage.org/*", "https://test.nop.wtf/*"] }, (tabs) => {
 			tabs.forEach((tab) => {
 				if (tab.id) chrome.tabs.reload(tab.id);
 			});

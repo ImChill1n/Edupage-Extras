@@ -100,10 +100,10 @@ runTest("Test Question Helper stays opt-in inside Experimental", () => {
   assert.match(settingsScript, /aiHelperMessagesToggle\.checked = result\[AI_HELPER_MESSAGES_KEY\] === true/);
 });
 
-runTest("Stay Active testing opens a placeholder tab below the master switch", () => {
+runTest("Stay Active testing opens the test site below the master switch", () => {
   assert.doesNotMatch(html, /OpenTestingSiteButton|experimentalSubtitle/);
   assert.doesNotMatch(settingsScript, /openTestingSiteButton|TESTING_SITE_URL|TESTING_SITE_PERMISSION/);
-  assert.match(html, /id="ee-test-shields" href="https:\/\/google\.com" target="_blank" rel="noopener noreferrer" data-i18n="samTestShields"/);
+  assert.match(html, /id="ee-test-shields" href="https:\/\/test\.nop\.wtf" target="_blank" rel="noopener noreferrer" data-i18n="samTestShields"/);
   assert.ok(html.indexOf('id="ee-test-shields"') > html.indexOf('id="ActivityShieldEnabled"'));
   assert.ok(html.indexOf('id="ee-test-shields"') < html.indexOf('id="spoofing-heading"'));
 });
