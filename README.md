@@ -81,6 +81,19 @@ EduPage, open a GitHub issue or report it on [Discord](https://discord.gg/eNZXHe
 - **Curriculum export** — on a subject's topic plan page, export the
   full year's chapters, topics, and taught dates as `.txt` or `.csv`.
 
+### Test results
+
+- **Show My Test Answers (WIP, off by default)** — enable in Settings →
+  Enhancements to open Answers / detailed results for your completed eTests
+  when EduPage has already loaded them but hides the question view. The setting
+  only overrides question visibility. Correct-answer checks and the print
+  renderer stay native: unlocked tests without a server-provided answer key
+  show your answers without forced green/red correctness marks.
+  A banner above the results explains that these are the answers you entered
+  during the test, in the extension's UI language.
+  It reapplies during navigation and restores the original view when disabled.
+  It does not retrieve missing answers, change results, or submit anything.
+
 ### Login
 
 - **Auto-login** (off by default) — clicks through EduPage's
