@@ -56,7 +56,7 @@
     let previousDate = null;
 
     entries.forEach((entry) => {
-      const dateMatch = String(entry?.dateText || "").match(/(\d+)\.\s*(\d+)\./);
+      const dateMatch = String(entry?.dateText || "").match(/(\d+)[./]\s*(\d+)(?:\.|\b)/);
       if (!dateMatch) {
         resolvedEntries.push({
           ...entry,
@@ -132,11 +132,42 @@
     return lessonCell.parentElement;
   }
 
+  function parseTimetableTimeRange(value) {
+    const match = /^(\d{1,2}):(\d{2})\s*([ap]m)?\s*[-–]\s*(\d{1,2}):(\d{2})\s*([ap]m)?$/i.exec(String(value || "").trim());
+    if (!match) return null;
+    function time(hour, minute, suffix) {
+      let h = Number(hour);
+      const m = Number(minute);
+      if (m > 59 || (suffix ? h < 1 || h > 12 : h > 23)) return null;
+      if (suffix) h = h % 12 + (suffix.toLowerCase() === "pm" ? 12 : 0);
+      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    }
+    const startTime = time(match[1], match[2], match[3]);
+    const endTime = time(match[4], match[5], match[6]);
+    return startTime && endTime ? { startTime, endTime, implicit12Hour: !match[3] && !match[6] } : null;
+  }
+
+  function normalizeTimetablePeriods(headers) {
+    let previousStart = -1;
+    const minute = (value) => value.split(":").reduce((hours, mins) => Number(hours) * 60 + Number(mins));
+    const clock = (value) => `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
+    return headers.map(({ implicit12Hour, ...header }) => {
+      let start = minute(header.startTime);
+      let end = minute(header.endTime);
+      // Compact English headers omit AM/PM. Their chronological period order
+      // disambiguates afternoon times without changing 24-hour headers.
+      if (implicit12Hour && start < previousStart && start < 720 && start + 720 >= previousStart) start += 720;
+      if (implicit12Hour && end <= start && end < 720 && end + 720 > start) end += 720;
+      previousStart = start;
+      return { ...header, startTime: clock(start), endTime: clock(end) };
+    });
+  }
+
   function findStickyHeader(root) {
     return Array.from(root.querySelectorAll("div")).find((element) => {
       const style = element.style || {};
       return style.position === "sticky"
-        && Array.from(element.querySelectorAll("span")).some((span) => /^\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}$/.test(span.textContent.trim()));
+        && Array.from(element.querySelectorAll("span")).some((span) => parseTimetableTimeRange(span.textContent));
     }) || null;
   }
 
@@ -144,7 +175,7 @@
     return Array.from(root.querySelectorAll("div")).find((element) => {
       const style = element.style || {};
       if (style.position !== "sticky") return false;
-      return Array.from(element.querySelectorAll("div")).some((child) => /(\d+)\.\s*(\d+)\./.test(child.textContent.replace(/\s+/g, " ").trim()));
+      return Array.from(element.querySelectorAll("div")).some((child) => /(\d+)[./]\s*(\d+)(?:\.|\b)/.test(child.textContent.replace(/\s+/g, " ").trim()));
     }) || null;
   }
 
@@ -157,22 +188,21 @@
       const spans = Array.from(element.querySelectorAll("span"));
       const combinedText = element.textContent.replace(/\s+/g, " ").trim();
       const label = spans[0]?.textContent?.trim() || combinedText.match(/\b(\d+)\b/)?.[1] || "";
-      const timeRange = spans.find((span) => /^\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}$/.test(span.textContent.trim()))?.textContent?.trim()
-        || combinedText.match(/(\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2})/)?.[1]
-        || "";
-      if (!/^\d+$/.test(label) || !/^\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}$/.test(timeRange)) return;
+      const timeRange = spans.map((span) => parseTimetableTimeRange(span.textContent)).find(Boolean);
+      if (!/^\d+$/.test(label) || !timeRange) return;
 
-      const [startTime, endTime] = timeRange.split("-").map((value) => value.trim());
+      const { startTime, endTime, implicit12Hour } = timeRange;
       headers.push({
         period: label,
         left: readStyleNumber(element, "left"),
         width: readStyleNumber(element, "width"),
         startTime,
         endTime,
+        implicit12Hour,
       });
     });
 
-    return headers.sort((left, right) => left.left - right.left);
+    return normalizeTimetablePeriods(headers.sort((left, right) => left.left - right.left));
   }
 
   function parseDayHeaders(root) {
@@ -182,7 +212,7 @@
 
     stickyColumn.querySelectorAll("div[style*='position: absolute']").forEach((element) => {
       const text = element.textContent.replace(/\s+/g, " ").trim();
-      if (!text || !/(\d+)\.\s*(\d+)\./.test(text)) return;
+      if (!text || !/(\d+)[./]\s*(\d+)(?:\.|\b)/.test(text)) return;
       const parts = Array.from(element.childNodes)
         .map((node) => node.textContent || "")
         .map((value) => value.replace(/\s+/g, " ").trim())
@@ -190,7 +220,7 @@
       if (parts.length < 2) return;
 
       const dayToken = parts[0];
-      const dateMatch = parts[1].match(/(\d+)\.\s*(\d+)\./);
+      const dateMatch = parts[1].match(/(\d+)[./]\s*(\d+)(?:\.|\b)/);
       if (!dateMatch) return;
 
       headers.push({
@@ -214,7 +244,9 @@
     if (!root) return null;
 
     const title = root.querySelector("div[style*='font-size: 32px']");
-    const weekLabelElement = root.querySelector("div[style*='width: 80px'][style*='height: 45px']");
+    const weekLabelElement = Array.from(root.querySelectorAll("div")).find((element) =>
+      element.style.position === "absolute" && element.parentElement?.style.position === "sticky"
+      && readStyleNumber(element, "height") === 45 && !element.querySelector("span"));
     const periodHeaders = parsePeriodHeaders(root);
     const dayHeaders = parseDayHeaders(root);
     if (!weekLabelElement || periodHeaders.length === 0 || dayHeaders.length === 0) return null;
@@ -321,10 +353,10 @@
   }
 
   async function clickWeekNavigator(direction) {
-    const forwardTexts = [">>", "»", "›", "››"];
-    const backwardTexts = ["<<", "«", "‹", "‹‹"];
+    const forwardTexts = [">>", ">", "»", "›", "››"];
+    const backwardTexts = ["<<", "<", "«", "‹", "‹‹"];
     const candidates = direction > 0 ? forwardTexts : backwardTexts;
-    const control = Array.from(document.querySelectorAll("span")).find((element) => candidates.includes(element.textContent.trim()));
+    const control = Array.from(nativeNavigation()?.querySelectorAll("span") || []).find((element) => candidates.includes(element.textContent.trim()));
     if (!control) {
       throw new Error(`Could not find timetable navigation control: ${candidates[0]}`);
     }
@@ -359,30 +391,22 @@
     void chrome.runtime.lastError;
   });
 
-  // When the user is already on the timetable page, proactively push the current
-  // week's data into the background cache. If grades opens shortly after, the
-  // cache is warm and no hidden background tab needs to be created.
-  if (window.location.href.includes("mode=timetable")) {
-    waitForTimetableReady().then((parsed) => {
-      if (!parsed || !parsed.lessons.length) return;
-      chrome.runtime.sendMessage({
-        type: "ee-timetable-page-preload",
-        origin: window.location.origin,
-        data: serializeParsedWeek(parsed),
-      }, () => { void chrome.runtime.lastError; });
-    }).catch(() => {});
-  }
-
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message?.type === "ee-comparison-read" || message?.type === "ee-comparison-classes") {
+      readComparison(message).then((data) => sendResponse({ ok: true, data }))
+        .catch(() => sendResponse({ ok: false, error: "eeCompareLiveUnavailable" }));
+      return true;
+    }
     if (message?.type !== "ee-extract-timetable-week" && message?.type !== "ee-extract-timetable-week-series") return false;
 
     (async () => {
       lastResolvedWeekStart = null;
 
-      if (!window.location.href.includes("mode=timetable")) {
+      if (globalThis.EEComparison?.pageMode(window.location.search) !== "timetable") {
         throw new Error("The hidden tab is not on the EduPage timetable page.");
       }
 
+      await selectOwnTimetable();
       let parsed = await waitForTimetableReady();
       if (!parsed) {
         throw new Error("EduPage timetable did not finish rendering.");
@@ -438,8 +462,85 @@
 
     return true;
   });
+
+  // Verified against EduPage's native #fitheight timetable navigation. Class
+  // labels are the DOM's stable identity; they are always scoped to the school.
+  function nativeNavigation() { return document.querySelector("#fitheight")?.firstElementChild; }
+
+  function nativeControl(titles) {
+    return Array.from(nativeNavigation()?.querySelectorAll("span[title]") || [])
+      .find((element) => titles.includes(element.title));
+  }
+
+  async function selectOwnTimetable() {
+    const control = nativeControl(["My timetable", "Môj rozvrh", "Můj rozvrh"])
+      || Array.from(nativeNavigation()?.children || []).find((element) => element.tagName === "SPAN" && element.style.fontWeight === "bold");
+    if (!control) throw new Error("Unsupported timetable navigation");
+    const before = document.querySelector("#fitheight .print-nobreak");
+    control.click();
+    const until = Date.now() + 10000;
+    do {
+      await delay(250);
+      const parsed = parseWeeklyTimetable();
+      if (parsed && (!before?.isConnected || Date.now() > until - 9000)) return parsed;
+    } while (Date.now() < until);
+    return null;
+  }
+
+  async function listComparisonClasses() {
+    const control = nativeControl(["Classes", "Triedy", "Třídy"])
+      || nativeNavigation()?.querySelector("img[src$='/class_32.svg']")?.closest("span");
+    if (!control) throw new Error("Unsupported timetable navigation");
+    control.click();
+    const until = Date.now() + 8000;
+    let options;
+    do {
+      await delay(100);
+      options = Array.from(document.querySelectorAll(".dropDownPanel.asc-context-menu > li > a"));
+    } while (!options.length && Date.now() < until);
+    if (!options.length || options.length > 300) throw new Error("Class list unavailable");
+    return options.map((element) => ({ id: element.textContent.trim(), label: element.textContent.trim() }));
+  }
+
+  async function readComparison(message) {
+    lastResolvedWeekStart = null;
+    if (!new URLSearchParams(window.location.search).has("eeComparison")) throw new Error("Comparison requires its own tab");
+    if (!await waitForTimetableReady(15000)) throw new Error("Timetable unavailable");
+    if (message.type === "ee-comparison-classes") return { classes: await listComparisonClasses() };
+    const C = globalThis.EEComparison;
+    if (!C || !Number.isFinite(C.dayNumber(message.weekStart)) || C.monday(message.weekStart) !== message.weekStart) throw new Error("Invalid week");
+    let parsed = await selectOwnTimetable();
+    if (!parsed) throw new Error("Timetable unavailable");
+    if (message.ownerId !== "self") {
+      const classes = await listComparisonClasses();
+      if (!classes.some((entry) => entry.id === message.ownerId)) throw new Error("Class unavailable");
+      const option = Array.from(document.querySelectorAll(".dropDownPanel.asc-context-menu > li > a"))
+        .find((element) => element.textContent.trim() === message.ownerId);
+      option.click();
+      const until = Date.now() + 10000;
+      do {
+        await delay(200);
+        parsed = parseWeeklyTimetable();
+      } while (Date.now() < until && parsed?.classLabel !== message.ownerId);
+      if (parsed?.classLabel !== message.ownerId) throw new Error("Class did not change");
+    }
+    const until = Date.now() + 30000;
+    for (let index = 0; index < 54 && Date.now() < until; index++) {
+      const current = parsed?.dayHeaders?.[0]?.date;
+      if (!current) throw new Error("Week unavailable");
+      const start = C.monday(current);
+      if (start === message.weekStart) return serializeParsedWeek(parsed);
+      lastResolvedWeekStart = parseDateOnly(current);
+      await clickWeekNavigator(start < message.weekStart ? 1 : -1);
+      parsed = await waitForTimetableReady(3000);
+      if (message.ownerId !== "self" && parsed?.classLabel !== message.ownerId) throw new Error("Class changed unexpectedly");
+    }
+    throw new Error("Week navigation limit reached");
+  }
+
+  window.__eeComparisonReader = { parseWeeklyTimetable, findTimetableRoot, parseTimetableTimeRange, normalizeTimetablePeriods };
   // Deliberate test hook — see tests/timetable-sync.test.js.
   if (globalThis.__EE_TEST__) {
-    globalThis.__eeTestExports = { resolveDisplayedDate, resolveDisplayedWeekDates, formatDate };
+    globalThis.__eeTestExports = { resolveDisplayedDate, resolveDisplayedWeekDates, formatDate, parseTimetableTimeRange, normalizeTimetablePeriods };
   }
 })();

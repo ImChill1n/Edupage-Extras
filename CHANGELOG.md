@@ -4,6 +4,21 @@ All notable changes to Edupage Extras are documented here. Versions follow
 `package.json` / `manifest.json`. History pre v0.7.0 is only in the git
 log — this file starts at the Firefox-compatibility update.
 
+## 1.0.9 — 2026-10-22
+
+- Added opt-in timetable comparison, configured entirely in Timetable settings.
+  Save multiple school-class or imported calendar schedules and select one to
+  compare with the native timetable.
+- Added weekly and alternating A/B calendar imports with previews, group filters,
+  local storage, and shared gaps of at least 15 minutes.
+- Added a compact Home row showing the other timetable's current/next lesson,
+  both finish times, and their difference. The weekly page keeps EduPage's grid
+  and adds expandable daily comparisons, including encoded timetable links.
+- Kept comparisons stable during EduPage's periodic widget refresh, preserving
+  expanded details and keyboard focus.
+- Isolated live timetable caches by school, owner, and week, and excluded saved
+  comparison contents from diagnostics and release packages.
+
 ## 1.0.8 — 2026-10-22
 
 - Added an opt-in, work-in-progress Show My Test Answers setting for completed

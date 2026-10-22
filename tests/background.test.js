@@ -2,8 +2,9 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
+const { test } = require("node:test");
 
-function loadBackgroundInternals() {
+function loadBackgroundInternals(settings = {}) {
   const scriptPath = path.join(__dirname, "..", "scripts", "background.js");
   const source = fs.readFileSync(scriptPath, "utf8");
 
@@ -37,7 +38,7 @@ function loadBackgroundInternals() {
       storage: {
         local: {
           get(_keys, callback) {
-            callback({});
+            callback(settings);
           },
           set(_values, callback) {
             if (callback) callback();
@@ -744,4 +745,31 @@ runTest("half-year export skips school vacations and user-excluded ranges", () =
     assert.equal(shouldSkipGeneratedSchoolDay(new Date(2026, 3, 2)), true); // Easter Thursday
     assert.equal(shouldSkipGeneratedSchoolDay(new Date(2026, 5, 10)), false); // ordinary June school day
   }
+});
+
+test("diagnostics omit saved comparison contents entirely", async () => {
+  const { buildSettingsSummary } = loadBackgroundInternals({
+    eeTimetableComparison: { name: "Synthetic private schedule", templates: [{ title: "Synthetic lesson" }] },
+    eeTimetableComparisons: { schedules: [{ name: "Synthetic saved schedule" }] },
+    eeThemeEnabled: true,
+  });
+  const result = await buildSettingsSummary();
+  assert.equal(result.eeThemeEnabled, true);
+  assert.equal("eeTimetableComparison" in result, false);
+  assert.equal("eeTimetableComparisons" in result, false);
+  assert.equal(JSON.stringify(result).includes("Synthetic"), false);
+});
+
+runTest("extension calendar exports round-trip lesson groups into comparison templates", () => {
+  const { buildIcsCalendar } = loadBackgroundInternals();
+  const C = require("../scripts/lib/ee-timetable-comparison.js");
+  const { ics } = buildIcsCalendar([{
+    key: "synthetic-lesson", startDateTime: "2026-10-19T08:00:00", endDateTime: "2026-10-19T08:45:00",
+    payload: { summary: "Sample subject", location: "12", comparisonGroup: "Group A", description: "Metadata not imported" },
+  }]);
+  const [lesson] = C.parseIcs(ics);
+  assert.equal(lesson.startTime, "08:00");
+  assert.equal(lesson.group, "Group A");
+  assert.equal(lesson.room, "12");
+  assert.equal("description" in lesson, false);
 });

@@ -86,6 +86,28 @@ runTest("resolveDisplayedDate rejects calendar overflow from page text", () => {
   assert.equal(resolveDisplayedDate("10.", "13.", new Date(2026, 1, 1)), null);
 });
 
+runTest("timetable times support English AM/PM, midnight/noon, and 24-hour locales", () => {
+  const { parseTimetableTimeRange } = loadTimetableInternals();
+  assert.equal(parseTimetableTimeRange("11:40 am - 12:25 pm").endTime, "12:25");
+  assert.equal(parseTimetableTimeRange("1:25 pm - 2:10 pm").startTime, "13:25");
+  assert.equal(parseTimetableTimeRange("12:05 am - 12:45 am").startTime, "00:05");
+  assert.equal(parseTimetableTimeRange("08:00 – 08:45").startTime, "08:00");
+  assert.equal(parseTimetableTimeRange("25:00 - 26:00"), null);
+});
+
+runTest("English timetable day/month headers resolve actual calendar dates", () => {
+  const { resolveDisplayedWeekDates } = loadTimetableInternals();
+  assert.equal(resolveDisplayedWeekDates([{ dateText: "19/10" }], new Date(2026, 9, 21))[0].date, "2026-10-19");
+});
+
+runTest("compact English headers keep afternoon lessons after noon when AM/PM is omitted", () => {
+  const { parseTimetableTimeRange, normalizeTimetablePeriods } = loadTimetableInternals();
+  const result = normalizeTimetablePeriods(["11:40 - 12:25", "12:35 - 1:20", "1:25 - 2:10", "2:15 - 3:00"].map(parseTimetableTimeRange));
+  assert.equal(result[1].endTime, "13:20");
+  assert.equal(result[2].startTime, "13:25");
+  assert.equal(result[3].endTime, "15:00");
+});
+
 runTest("resolveDisplayedWeekDates keeps cross-year week headers in chronological order", () => {
   const { resolveDisplayedWeekDates } = loadTimetableInternals();
   const resolved = resolveDisplayedWeekDates([

@@ -57,6 +57,54 @@ Theme colors belong in `--ee-*` variables. The dark-mode normalizer observes
 newly rendered content and marks only known light surfaces. Avoid broad rules
 that invent borders or boxes around EduPage's otherwise continuous layouts.
 
+## Timetable comparison
+
+`scripts/lib/ee-timetable-comparison.js` owns calendar validation, sample-week
+templates, civil-date A/B repetition, group filtering, and shared-gap calculation.
+`scripts/timetable-comparison-ui.js` provides the inline editor exclusively in
+Settings → Timetable; `scripts/timetable-comparison.js` adds a compact finish-time
+strip above the native weekly grid and a single expandable row below the home
+widget. Native timetables stay visible. Their rendered lessons supply the first
+schedule without opening a background tab. Weekly route detection accepts both
+`mode=timetable` and base64 `eqa` links. Scoped observers handle native timetable
+replacement; the home row is mounted after `.userRozvrh` so its periodic native
+refresh cannot remove the comparison. Rebinding to an identical native schedule
+retains the row, disclosures, focus, and in-flight reads. Current/next labels
+update at lesson boundaries without polling.
+`eeTimetableComparisonEnabled` defaults off independently of saved data; no
+injected controls, discovery observers, or live requests run while it is off.
+Setup, edit, removal, and the master switch exist only in Settings. Settings use
+the established setting-card/switch/secondary-button components and shared radius
+tokens. Turning off or removing a comparison also closes its active temporary
+tabs and invalidates in-flight cache writes.
+
+`eeTimetableComparisons` stores a versioned local collection of stable IDs,
+normalized profiles, and the selected ID. `eeTimetableComparison` remains the
+active-profile projection consumed by page scripts and cache cleanup; Settings
+updates both keys in one storage write. The previous single profile is preserved
+as the first saved schedule on the first library change. Adds select the new
+schedule; edits retain its ID; removing the selected schedule chooses the first
+remaining one or clears the active profile. Failed writes preserve both values.
+Original calendar files and unrelated event metadata are discarded. Diagnostics
+omit both storage keys and the entire comparison DOM. No additional permissions or external services
+are used. Calendar support is deliberately limited to dated same-day lessons,
+floating/local-zone times, and UTC stamps; unsupported recurrence/timezone forms
+are rejected before replacing saved data.
+
+`scripts/timetable-comparison-background.js` uses bounded temporary EduPage tabs
+and a ten-minute in-memory cache keyed by school, owner/class, and week. It checks
+the sender origin, requested dates, class identity, and normalized lessons before
+caching. Removal/changes clear the cache and invalidate in-flight cache writes.
+No live comparison data is persisted. Firefox loads this background module after
+the shared model and main background script; Chromium imports it in its worker.
+
+The timetable reader selects EduPage's native My timetable/Classes controls,
+supports text and compact icon navigation, AM/PM and 24-hour period headers,
+and dotted/slashed dates. Period order disambiguates compact English afternoon
+times without AM/PM. Passive caching of the currently viewed timetable was
+removed because it cannot distinguish another class from the user's own data;
+the legacy export cache version was incremented to invalidate ambiguous entries.
+
 ## Grades and eTest
 
 Grades sorting/filtering works on the real subject table and moves a subject

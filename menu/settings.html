@@ -4,6 +4,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
     <link rel="stylesheet" href="settings.css">
+    <link rel="stylesheet" href="../scripts/timetable-comparison.css">
     <title>Edupage Extras Settings</title>
   </head>
   <body>
@@ -463,6 +464,21 @@
 
       <section class="setting-group settings-standard-section" id="panel-timetable" aria-labelledby="timetable-heading">
         <h2 id="timetable-heading" data-i18n="groupTimetable">Timetable</h2>
+        <div class="setting-card" id="ee-comparison-settings">
+          <div class="setting-row">
+            <div>
+              <h3 data-i18n="eeCompareTitle">Compare timetables</h3>
+              <p data-i18n="eeCompareEnabledDesc">Show one other timetable beside yours. Configure it here; nothing is added to EduPage while this is off.</p>
+            </div>
+            <label class="switch switch-compact" for="ee-comparison-enabled">
+              <input type="checkbox" id="ee-comparison-enabled" aria-controls="ee-comparison-setup">
+              <span class="switch-track" aria-hidden="true"></span>
+              <span class="sr-only" data-i18n="eeCompareToggle">Toggle timetable comparison</span>
+            </label>
+          </div>
+          <div id="ee-comparison-setup" class="ee-comparison ee-comparison-settings-content" hidden></div>
+          <p id="ee-comparison-setting-status" class="setting-tip" role="status"></p>
+        </div>
 
         <div class="setting-card">
           <div class="setting-row">
@@ -1221,6 +1237,9 @@
     <script src="../scripts/lib/ee-common.js"></script>
     <script src="i18n.js"></script>
     <script src="settings.js"></script>
+    <script src="../scripts/lib/ee-timetable-comparison.js"></script>
+    <script src="../scripts/timetable-comparison-ui.js"></script>
+    <script src="timetable-comparison-settings.js"></script>
     <script src="etest-image-export.js"></script>
   </body>
 </html>

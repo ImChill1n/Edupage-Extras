@@ -187,7 +187,7 @@
   }
 
   function serializeElement(el, options, depth, budget) {
-    if (!el || budget.count <= 0 || depth > options.maxDepth) return null;
+    if (!el || budget.count <= 0 || depth > options.maxDepth || el.classList?.contains("ee-comparison")) return null;
     budget.count -= 1;
 
     const node = { tag: el.tagName ? el.tagName.toLowerCase() : "?" };

@@ -2,7 +2,7 @@
   "name": "__MSG_extName__",
   "description": "__MSG_extDescription__",
   "default_locale": "en",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "manifest_version": 3,
   "icons": {
     "16": "images/icon-16.png",
@@ -72,15 +72,18 @@
   "content_scripts": [
     {
       "matches": ["https://*.edupage.org/*"],
-      "css": ["scripts/instant-theme.css", "scripts/theme-static.css"],
+      "css": ["scripts/instant-theme.css", "scripts/theme-static.css", "scripts/timetable-comparison.css"],
       "js": [
         "scripts/lib/ee-common.js",
         "scripts/theme-bootstrap.js",
         "scripts/diagnostics.js",
         "scripts/activity-shield-bridge.js",
         "scripts/content.js",
+        "scripts/lib/ee-timetable-comparison.js",
+        "scripts/timetable-comparison-ui.js",
         "scripts/timetable-sync.js",
         "scripts/timetable-enhancer.js",
+        "scripts/timetable-comparison.js",
         "scripts/grades-enhancer.js",
         "scripts/grades-debug.js",
         "scripts/grades-badges.js",

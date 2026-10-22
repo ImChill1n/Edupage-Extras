@@ -53,7 +53,7 @@ const UPDATE_MANIFEST_URLS = [
 // the timetable from, without needing the user to type a URL.
 const LAST_EDUPAGE_ORIGIN_KEY = "eeGoogleCalendarLastEdupageOrigin";
 const TIMETABLE_SYNC_CACHE_KEY = "eeTimetableSyncCache";
-const TIMETABLE_SYNC_CACHE_VERSION = 1;
+const TIMETABLE_SYNC_CACHE_VERSION = 2;
 const EE_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Bratislava";
 const TIMETABLE_LIVE_CACHE_TTL_MS = 10 * 60 * 1000;
 // Same keys grades-enhancer.js/attendance-enhancer.js read for the second
@@ -718,7 +718,7 @@ async function buildSettingsSummary() {
   const summary = {};
   for (const [key, value] of Object.entries(all || {})) {
     if (DIAGNOSTICS_SECRET_PATTERN.test(key)) continue;
-    if (key === TIMETABLE_SYNC_CACHE_KEY) continue; // summarised separately
+    if (key === TIMETABLE_SYNC_CACHE_KEY || key === "eeTimetableComparison" || key === "eeTimetableComparisons") continue; // private timetable data
     if (value === null || value === undefined) continue;
     const type = typeof value;
     if (type === "boolean" || type === "number") {
@@ -1521,6 +1521,7 @@ function buildDesiredEvent({ lesson, classLabel, weekLabel, mode, config }) {
     endDateTime: toRfc3339(lesson.date, lesson.endTime),
     payload: {
       summary: buildLessonSummary(lesson, options),
+      comparisonGroup: lesson.group || undefined,
       location: lesson.room || undefined,
       description: buildLessonDescription({ lesson, classLabel, weekLabel, mode }),
       start: {
@@ -1770,6 +1771,7 @@ function buildIcsCalendar(events, calendarName = "EduPage Timetable") {
     lines.push(`DTEND:${end}`);
     lines.push(`SUMMARY:${icsEscapeText(event?.payload?.summary)}`);
     if (event?.payload?.location) lines.push(`LOCATION:${icsEscapeText(event.payload.location)}`);
+    if (event?.payload?.comparisonGroup) lines.push(`X-EE-GROUP:${icsEscapeText(event.payload.comparisonGroup)}`);
     if (event?.payload?.description) lines.push(`DESCRIPTION:${icsEscapeText(event.payload.description)}`);
     lines.push("END:VEVENT");
     count += 1;
@@ -2126,6 +2128,7 @@ if (globalThis.__EE_TEST__) {
     normalizeAiFillIns,
     normalizeAiDropdownIndexes,
     DIAGNOSTICS_SECRET_PATTERN,
+    buildSettingsSummary,
   };
 }
 
@@ -2289,33 +2292,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false;
   }
 
-  if (message?.type === "ee-timetable-page-preload") {
-    const origin = typeof message.origin === "string" && message.origin.startsWith("https://")
-      ? message.origin
-      : "";
-    const weekData = message.data && typeof message.data === "object" ? message.data : null;
-    if (origin && weekData) {
-      const weekStart = resolveWeekStartDateString(weekData);
-      // Only write if the existing cache is missing or stale — don't downgrade a
-      // full multi-week cache (with a proper adjacentWeek) to a single-week one.
-      readFreshTimetableBundle(origin, weekStart, true).then((existing) => {
-        if (existing?.liveWeek) return;
-        return writeTimetableSyncCache(origin, {
-          liveWeek: weekData,
-          // Preload only ever samples the currently-visible week — writing
-          // weekData here too would make an A/B-week school's half-year
-          // export believe there's no alternation (readFreshTimetableBundle
-          // only checks that adjacentWeek is truthy). Leave it null so the
-          // requireAdjacent=true half-year path keeps falling back to the
-          // real hidden-tab extraction instead of trusting this bundle.
-          adjacentWeek: null,
-          sampleWeeks: [],
-        });
-      }).catch(() => {});
-    }
-    return false;
-  }
-
   if (message?.type === "ee-export-timetable-ics") {
     const range = message.range === "halfyear" ? "halfyear" : "week";
     const includeChanges = message.includeChanges !== false;
@@ -2345,3 +2321,7 @@ chrome.notifications.onButtonClicked.addListener((notificationId) => {
     chrome.notifications.clear(notificationId);
   }
 });
+
+if (typeof importScripts === "function") {
+  importScripts("lib/ee-timetable-comparison.js", "timetable-comparison-background.js");
+}

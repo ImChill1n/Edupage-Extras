@@ -376,7 +376,7 @@ runTest("cached theme bootstrap runs before the larger content script", () => {
   const source = fs.readFileSync(path.join(__dirname, "..", "scripts", "theme-bootstrap.js"), "utf8");
 
   assert.ok(bootstrapIndex >= 0 && bootstrapIndex < contentIndex);
-  assert.deepEqual(styles, ["scripts/instant-theme.css", "scripts/theme-static.css"]);
+  assert.deepEqual(styles, ["scripts/instant-theme.css", "scripts/theme-static.css", "scripts/timetable-comparison.css"]);
   assert.match(source, /root\.classList\.add\("ee-dark", `ee-theme-\$\{theme\}`\)/);
   assert.match(source, /eeThemeCacheV1/);
   assert.match(source, /--ee-custom-table-header-bg/);

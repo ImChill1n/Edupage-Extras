@@ -108,6 +108,33 @@ EduPage, open a GitHub issue or report it on [Discord](https://discord.gg/eNZXHe
   of EduPage's single generic color, so you can tell at a glance what changed.
 - **Export to .ics** — download the current week or the whole half-year as a
   standard calendar file, importable into calendar apps.
+- **Compare timetables** — compare your timetable with one other class at your
+  school, or a calendar imported as a repeating weekly or A/B-week template.
+  Enable **Compare timetables** in **Settings → Timetable** and configure it
+  inline beneath the switch. Save multiple class or imported timetables, then
+  choose **Shown comparison** to switch which one appears on EduPage. **Add
+  timetable** keeps existing schedules; **Edit / replace** changes the selected
+  schedule. It is off by default, and adds no controls or
+  prompts to EduPage while off or before a schedule is saved. Preview the next two
+  weeks before saving; select included groups and the Monday that anchors week A.
+  Home keeps your native timetable and adds one expandable row with their
+  current/next lesson, both finish times, and the difference. The weekly page
+  keeps EduPage’s grid and adds a compact day-by-day finish strip; expand a day
+  for their lessons and shared gaps. Both plain and encoded timetable links work.
+  Shared gaps of at least 15 minutes are calculated within the combined school
+  day. They mean no scheduled lessons, not guaranteed availability.
+
+Imported `.ics` files stay on your device and must contain individual dated,
+timed lessons (up to 1 MB / 4,000 lessons). EduPage Extras exports are supported;
+recurrence rules, all-day events, overnight lessons, and named time zones other
+than the device's zone are rejected with an explanation. UTC exports are
+converted to device-local times before creating the template. Import one file
+containing both sample weeks, or separate files for A and B. Templates repeat
+until replaced or removed and do not update for holidays, cancellations, or
+substitutions. Other classes load live from your signed-in school; expand a day
+and use Refresh to check for changes. Turn the Settings switch off to remove
+the comparison while retaining every saved schedule. Remove in Settings deletes
+only the selected schedule and switches to another saved schedule if available.
 
 ### Experimental
 

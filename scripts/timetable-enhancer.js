@@ -401,35 +401,35 @@
     let el = rozvrh.parentElement;
     for (let depth = 0; depth < 8 && el && el !== document.body; depth++, el = el.parentElement) {
       for (const child of el.children) {
-        if (child === rozvrh || child.contains(rozvrh)) continue;
+        if (child === rozvrh || child.contains(rozvrh) || child.classList.contains("ee-comparison")) continue;
         const text = child.textContent || "";
         if (text.length > 300) continue;
         const lower = text.toLowerCase();
 
-        if (lower.includes("zajtra") || lower.includes("zítra") || lower.includes("zitra")) {
+        if (lower.includes("zajtra") || lower.includes("zítra") || lower.includes("zitra") || lower.includes("tomorrow")) {
           const tomorrow = new Date();
           tomorrow.setDate(tomorrow.getDate() + 1);
           return dateKey(tomorrow);
         }
 
-        const m = /\b(\d{1,2})\.(\d{1,2})\./.exec(text);
+        const m = /\b(\d{1,2})[./]\s*(\d{1,2})(?:\.|\b)/.exec(text);
         if (m) {
           const day = Number(m[1]);
           const month = Number(m[2]);
           if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
             const now = new Date();
-            let year = now.getFullYear();
-            // School year runs Sep–Jun; if the widget month is much earlier
-            // than the current month we've crossed a calendar-year boundary.
-            if (month - 1 < now.getMonth() - 5) year++;
-            const d = new Date(year, month - 1, day);
-            return dateKey(d);
+            const candidates = [-1, 0, 1].map((offset) => new Date(now.getFullYear() + offset, month - 1, day))
+              .filter((date) => date.getMonth() === month - 1 && date.getDate() === day)
+              .sort((left, right) => Math.abs(left - now) - Math.abs(right - now));
+            if (candidates[0]) return dateKey(candidates[0]);
           }
         }
       }
     }
     return todayDateKey();
   }
+
+  window.__eeTimetableWidgetDate = getWidgetDateKey;
 
   async function fetchRoomMap() {
     try {
