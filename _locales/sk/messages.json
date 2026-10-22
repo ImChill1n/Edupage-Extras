@@ -500,5 +500,9 @@
   "gradesRowUnmatched": { "message": "Údaje za aktuálny polrok ($1) sa nepodarilo priradiť k tomuto riadku známok." },
   "gradesRowPredictedUnmatched": { "message": "Predpokladané údaje ku koncu polroka ($1) sa nepodarilo priradiť k tomuto riadku známok." },
   "gradesRowTooltip": { "message": "Aktuálny polrok ($1): $2/$3 vymeškaných hodín. Vzorec: vymeškané / doteraz odučené hodiny v polroku." },
-  "gradesRowPredictedTooltip": { "message": "Ak už v období $1 nič nevymeškáte, predpokladaný súčet ku koncu polroka je $2/$3." }
+  "gradesRowPredictedTooltip": { "message": "Ak už v období $1 nič nevymeškáte, predpokladaný súčet ku koncu polroka je $2/$3." },
+  "etestResults": { "message": "Zobraziť moje odpovede v testoch" },
+  "etestResultsDesc": { "message": "Zobrazí tvoje odpovede z dokončených eTestov aj pri skrytom zobrazení otázok. Mení iba viditeľnosť otázok, nevynucuje farebné hodnotenie správnosti. Predvolene vypnuté; vypnutie obnoví pôvodné zobrazenie." },
+  "toggleEtestResults": { "message": "Prepnúť zobrazovanie mojich odpovedí v testoch" },
+  "etestResultsInfo": { "message": "Edupage Extras: Toto sú odpovede, ktoré si vyplnil počas testu, nie kľúč správnych odpovedí." }
 }

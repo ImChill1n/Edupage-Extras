@@ -92,6 +92,7 @@
         "scripts/attendance-enhancer.js",
         "scripts/ucivo-enhancer.js",
         "scripts/etest-enhancer.js",
+        "scripts/etest-results-bridge.js",
         "scripts/autologin.js"
       ],
       "run_at": "document_start",
@@ -100,7 +101,7 @@
     },
     {
       "matches": ["https://*.edupage.org/*"],
-      "js": ["scripts/etest-answer-bridge.js"],
+      "js": ["scripts/etest-answer-bridge.js", "scripts/etest-results-main.js"],
       "run_at": "document_start",
       "all_frames": true,
       "match_about_blank": true,
