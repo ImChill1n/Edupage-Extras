@@ -18,6 +18,13 @@ portal. There is no framework or build step during development: the files in
   them after their dependencies load.
 - `scripts/etest-enhancer.js` owns eTest copying and the experimental question
   helper UI.
+- `scripts/etest-results-bridge.js` passes the opt-in `eeEtestResultsEnabled`
+  preference to `etest-results-main.js` in the page world. The latter wraps
+  only `zobrazovatOtazky` for the signed-in student's finished results.
+  `zobrazovatSpravne` and the print renderer stay untouched. Secured responses
+  omit the answer key, and widget loading can synthesize a first-option default
+  that must never be presented as an actual solution. The original is restored
+  when disabled, with event-driven retries and a bounded observer.
 - `menu/` contains the toolbar popup and settings page. `menu/i18n.js` maps
   strings from `_locales/{en,sk,cs}/messages.json`.
 - `tests/` runs with Node's built-in test runner. `scripts-dev/` contains

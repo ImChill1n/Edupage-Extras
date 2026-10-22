@@ -4,8 +4,16 @@ All notable changes to Edupage Extras are documented here. Versions follow
 `package.json` / `manifest.json`. History pre v0.7.0 is only in the git
 log — this file starts at the Firefox-compatibility update.
 
-## 1.0.8 — 2026-09-22
+## 1.0.8 — 2026-10-22
 
+- Added an opt-in, work-in-progress Show My Test Answers setting for completed
+  eTests. It shows the signed-in student's answers when EduPage has already
+  loaded them, preserves native correct-answer checks, and restores the original
+  view when disabled.
+- Added support for eTest suites and a localized explanation above the results
+  viewer.
+- Aligned the extension and npm lockfile versions with the 1.0.8 release and
+  allowed release retries to update an existing GitHub Release and its assets.
 - Added optional OpenAI support to the Experimental Test Question Helper,
   including per-provider credentials, model presets, and reasoning controls.
 - Added Gemini thinking controls and aligned OpenAI and Gemini requests with

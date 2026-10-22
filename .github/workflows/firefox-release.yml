@@ -98,7 +98,7 @@ jobs:
           path: web-ext-artifacts/*.xpi
           if-no-files-found: ignore
 
-      - name: Create GitHub Release
+      - name: Create or update GitHub Release
         if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -109,7 +109,15 @@ jobs:
           if [ ! -s notes.md ]; then
             echo "No CHANGELOG.md section found for $VERSION" > notes.md
           fi
-          gh release create "$GITHUB_REF_NAME" \
-            --title "$GITHUB_REF_NAME" \
-            --notes-file notes.md \
-            web-ext-artifacts/*-chrome.zip web-ext-artifacts/*.xpi
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release edit "$GITHUB_REF_NAME" \
+              --title "$GITHUB_REF_NAME" \
+              --notes-file notes.md
+            gh release upload "$GITHUB_REF_NAME" --clobber \
+              web-ext-artifacts/*-chrome.zip web-ext-artifacts/*.xpi
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --title "$GITHUB_REF_NAME" \
+              --notes-file notes.md \
+              web-ext-artifacts/*-chrome.zip web-ext-artifacts/*.xpi
+          fi

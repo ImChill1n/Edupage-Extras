@@ -68,6 +68,7 @@ const gradesExportToggle = document.getElementById("GradesExportCheckbox");
 const timetableExportToggle = document.getElementById("TimetableExportCheckbox");
 const timetableExportContent = document.getElementById("TimetableExportContent");
 const etestCopyToggle = document.getElementById("EtestCopyCheckbox");
+const etestResultsToggle = document.getElementById("EtestResultsCheckbox");
 const openEtestCopyShortcutSettingsButton = document.getElementById("OpenEtestCopyShortcutSettingsButton");
 const etestQuestionButtonsRow = document.getElementById("EtestQuestionButtonsRow");
 const etestQuestionButtonsToggle = document.getElementById("EtestQuestionButtonsCheckbox");
@@ -149,6 +150,7 @@ const GRADES_SORT_FILTER_KEY = "eeGradesSortFilterEnabled";
 const GRADES_EXPORT_KEY = "eeGradesExportEnabled";
 const TIMETABLE_EXPORT_KEY = "eeTimetableExportEnabled";
 const ETEST_COPY_KEY = "eeEtestCopyEnabled";
+const ETEST_RESULTS_KEY = "eeEtestResultsEnabled";
 const ETEST_QUESTION_BUTTONS_KEY = "eeEtestQuestionButtonsEnabled";
 const ETEST_WHOLE_TEST_BUTTON_KEY = "eeEtestWholeTestButtonEnabled";
 const ETEST_INCLUDE_ANSWERS_KEY = "eeEtestIncludeAnswers";
@@ -1355,6 +1357,15 @@ if (timetableExportToggle) {
 	timetableExportToggle.addEventListener("change", () => {
 		chrome.storage.local.set({ [TIMETABLE_EXPORT_KEY]: timetableExportToggle.checked });
 		updateTimetableExportVisibility();
+	});
+}
+
+if (etestResultsToggle) {
+	chrome.storage.local.get([ETEST_RESULTS_KEY], (result) => {
+		etestResultsToggle.checked = result[ETEST_RESULTS_KEY] === true;
+	});
+	etestResultsToggle.addEventListener("change", () => {
+		chrome.storage.local.set({ [ETEST_RESULTS_KEY]: etestResultsToggle.checked });
 	});
 }
 

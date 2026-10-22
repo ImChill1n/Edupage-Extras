@@ -510,5 +510,9 @@
   "gradesRowUnmatched": { "message": "Current halfyear ($1) data was not matched to this grades row." },
   "gradesRowPredictedUnmatched": { "message": "Projected end-of-halfyear ($1) data was not matched to this grades row." },
   "gradesRowTooltip": { "message": "Current halfyear ($1): $2/$3 lessons absent. Formula: absent / lessons held so far in the halfyear." },
-  "gradesRowPredictedTooltip": { "message": "If you miss no more lessons this $1, the projected end-of-halfyear total is $2/$3." }
+  "gradesRowPredictedTooltip": { "message": "If you miss no more lessons this $1, the projected end-of-halfyear total is $2/$3." },
+  "etestResults": { "message": "Show My Test Answers" },
+  "etestResultsDesc": { "message": "Show your completed eTest answers even when the question view is hidden. Only question visibility is changed; correct-answer highlighting is not forced. Off by default; turning it off restores the normal view." },
+  "toggleEtestResults": { "message": "Toggle showing my test answers" },
+  "etestResultsInfo": { "message": "Edupage Extras: These are the answers you entered during the test, not an answer key." }
 }
