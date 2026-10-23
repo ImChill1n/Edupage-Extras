@@ -4,6 +4,16 @@ All notable changes to Edupage Extras are documented here. Versions follow
 `package.json` / `manifest.json`. History pre v0.7.0 is only in the git
 log — this file starts at the Firefox-compatibility update.
 
+## 1.0.10 — 2026-10-23
+
+- Fixed missing Copy and AI buttons when EduPage opens an eTest through its
+  internal navigation.
+- Reattach enabled eTest controls to already-open tabs after extension updates
+  and reloads, replacing controls left behind by an invalidated extension.
+  Active tests are never reloaded and AI requests remain explicit actions.
+- Added the scripting permission for this attachment and regression tests for
+  navigation, repeated attachment, stale controls, and disabling the helpers.
+
 ## 1.0.9 — 2026-10-22
 
 - Added opt-in timetable comparison, configured entirely in Timetable settings.

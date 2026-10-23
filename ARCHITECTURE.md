@@ -107,6 +107,18 @@ the legacy export cache version was incremented to invalidate ambiguous entries.
 
 ## Grades and eTest
 
+The eTest helper remains registered across native smart navigation. It reads
+its opt-in settings on every top-level EduPage document, observes native content
+changes only while a helper feature is enabled, and renders controls only on
+`/elearning` routes. Disabling disconnects its observer and clears injected
+controls and remembered questions. A per-document guard makes background
+reattachment idempotent. A fresh attachment removes orphaned copy/AI controls
+and pending markers from an invalidated extension context before rebuilding;
+a repeat attachment to the live helper preserves its current request.
+Enabling or installing/updating the extension can attach
+the fixed helper file to existing EduPage tabs using `scripting`; this never
+reloads a test or invokes an AI provider automatically.
+
 Grades sorting/filtering works on the real subject table and moves a subject
 with its following category rows. Never modify `#znamkyTableHeaderBg` or
 EduPage's floating header clone: EduPage keeps them in sync itself.

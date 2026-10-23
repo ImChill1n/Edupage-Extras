@@ -3,7 +3,10 @@
 
   const IS_TEST = globalThis.__EE_TEST__ === true;
   if (!IS_TEST && window.top !== window) return;
-  if (!IS_TEST && !/^\/elearning\//i.test(window.location.pathname)) return;
+  if (!IS_TEST && window.__eeEtestEnhancerInit) return;
+  if (!IS_TEST) window.__eeEtestEnhancerInit = true;
+
+  const isEtestPage = () => /^\/elearning(?:\/|$)/i.test(window.location.pathname);
 
   const ETEST_COPY_KEY = "eeEtestCopyEnabled";
   const ETEST_QUESTION_BUTTONS_KEY = "eeEtestQuestionButtonsEnabled";
@@ -68,6 +71,8 @@
   let aiMatchRequestSequence = 0;
   let observerTimer = null;
   let snapshotTimer = null;
+  let observer = null;
+  let listenersInstalled = false;
   let seenSequence = 0;
   let activeTestScope = "";
   let activePlayerRoot = null;
@@ -997,7 +1002,7 @@
   }
 
   function requestAiSuggestion(content, buttonState) {
-    if (!content || content.dataset.eeAiRequestPending === "true") return;
+    if (!aiHelperEnabled || !isEtestPage() || !content || content.dataset.eeAiRequestPending === "true") return;
     const model = buildQuestionModel(content);
     const hadOrderingAnswer = hasOrderingAnswer(content);
     if (!model.plainBody) return;
@@ -1236,8 +1241,12 @@
   }
 
   function ensureButtons() {
-    if (!etestCopyEnabled && !aiHelperEnabled) {
+    if (!isEtestPage() || (!etestCopyEnabled && !aiHelperEnabled)) {
       removeButtons();
+      seenQuestions.clear();
+      activeTestScope = "";
+      activePlayerRoot = null;
+      lastAiQuestionContent = null;
       return;
     }
     ensureStyles();
@@ -1308,6 +1317,7 @@
   }
 
   function getCurrentAiQuestion() {
+    if (!isEtestPage()) return null;
     if (lastAiQuestionContent && document.documentElement.contains(lastAiQuestionContent)) return lastAiQuestionContent;
     const focused = document.activeElement;
     if (focused && typeof focused.closest === "function") {
@@ -1329,17 +1339,29 @@
   }
 
   function initObserver() {
+    if (!etestCopyEnabled && !aiHelperEnabled) {
+      observer?.disconnect();
+      observer = null;
+      clearTimeout(observerTimer);
+      clearTimeout(snapshotTimer);
+      observerTimer = null;
+      snapshotTimer = null;
+      return;
+    }
+    if (observer) return;
     if (!document.documentElement) {
       document.addEventListener("readystatechange", initObserver, { once: true });
       return;
     }
-    const observer = new MutationObserver(scheduleEnsure);
+    observer = new MutationObserver(scheduleEnsure);
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ["class"],
       childList: true,
       subtree: true,
     });
+    if (listenersInstalled) return;
+    listenersInstalled = true;
     document.addEventListener("input", scheduleSnapshotFromEvent, true);
     document.addEventListener("change", scheduleSnapshotFromEvent, true);
     document.addEventListener("focusin", rememberAiQuestion, true);
@@ -1391,6 +1413,7 @@
       aiHelperMessagesEnabled = preferences.aiHelperMessages;
       aiAnswerMode = preferences.aiAnswerMode;
       aiVisualFallbackEnabled = preferences.aiVisualFallback;
+      initObserver();
       ensureButtons();
     });
 
@@ -1413,7 +1436,7 @@
           : "buttons";
       }
       if (changes[AI_VISUAL_FALLBACK_KEY]) aiVisualFallbackEnabled = changes[AI_VISUAL_FALLBACK_KEY].newValue === true;
-      if (keys.some((key) => changes[key])) ensureButtons();
+      if (keys.some((key) => changes[key])) { initObserver(); ensureButtons(); }
     });
   }
 
@@ -1474,8 +1497,13 @@
   });
 
   function init() {
+    // Reloading an extension invalidates old handlers, but their DOM can remain.
+    // This runs once per attachment; repeated injection exits at the guard above.
+    removeButtons();
+    document.querySelectorAll(".etest-question-content").forEach((content) => {
+      delete content.dataset.eeAiRequestPending;
+    });
     initStorage();
-    initObserver();
   }
 
   init();

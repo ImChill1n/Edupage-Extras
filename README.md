@@ -171,6 +171,8 @@ Edupage Extras requests:
 
 - `storage` - saves extension settings locally in the browser.
 - `alarms` - checks for updates on a daily schedule.
+- `scripting` - attaches enabled eTest controls to already-open EduPage tabs
+  after enabling or updating the extension, without reloading an active test.
 - `notifications` - shows an unpacked-version update reminder when a newer
   GitHub version is available.
 - `https://*.edupage.org/*` host access - injects the extension scripts only on

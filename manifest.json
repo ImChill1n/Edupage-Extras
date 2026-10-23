@@ -2,7 +2,7 @@
   "name": "__MSG_extName__",
   "description": "__MSG_extDescription__",
   "default_locale": "en",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "manifest_version": 3,
   "icons": {
     "16": "images/icon-16.png",
@@ -19,7 +19,7 @@
       }
     }
   },
-  "permissions": ["storage", "alarms", "notifications"],
+  "permissions": ["storage", "alarms", "notifications", "scripting"],
   "optional_host_permissions": [
     "http://127.0.0.1/*",
     "http://localhost/*",
