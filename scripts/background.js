@@ -1209,6 +1209,22 @@ function notifyOpenEdupageTabs(message) {
   });
 }
 
+async function ensureOpenEtestHelpers() {
+  const settings = await storageGet([AI_HELPER_ENABLED_KEY, "eeEtestCopyEnabled"]);
+  if (settings[AI_HELPER_ENABLED_KEY] !== true && settings.eeEtestCopyEnabled !== true) return;
+  // Attach controls to existing documents after enabling/updating the extension;
+  // never navigate or reload an in-progress test. The content script is idempotent.
+  chrome.tabs.query({ url: "https://*.edupage.org/*" }, (tabs) => {
+    if (chrome.runtime.lastError) return;
+    for (const tab of tabs || []) {
+      if (!tab?.id || !/^https:\/\/[^/]+\.edupage\.org\//i.test(tab.url || "") || !chrome.scripting?.executeScript) continue;
+      chrome.scripting.executeScript({
+        target: { tabId: tab.id }, files: ["scripts/etest-enhancer.js"],
+      }, () => void chrome.runtime.lastError);
+    }
+  });
+}
+
 async function fetchLatestManifest() {
   let lastError = null;
 
@@ -2130,10 +2146,12 @@ if (globalThis.__EE_TEST__) {
     normalizeAiDropdownIndexes,
     DIAGNOSTICS_SECRET_PATTERN,
     buildSettingsSummary,
+    ensureOpenEtestHelpers,
   };
 }
 
 chrome.runtime.onInstalled.addListener(() => {
+  ensureOpenEtestHelpers().catch(() => {});
   syncUpdateAlarm().then((enabled) => {
     if (enabled) {
       checkForUpdates({ notify: true });
@@ -2142,6 +2160,7 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.runtime.onStartup.addListener(() => {
+  ensureOpenEtestHelpers().catch(() => {});
   syncUpdateAlarm().then((enabled) => {
     if (enabled) {
       checkForUpdates({ notify: true });
@@ -2213,6 +2232,10 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local") return;
+
+  if (changes[AI_HELPER_ENABLED_KEY]?.newValue === true || changes.eeEtestCopyEnabled?.newValue === true) {
+    ensureOpenEtestHelpers().catch(() => {});
+  }
 
   if (changes[UPDATE_REMINDER_ENABLED_KEY]) {
     syncUpdateAlarm().then((enabled) => {

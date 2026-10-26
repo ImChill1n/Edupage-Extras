@@ -4,7 +4,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 const { test } = require("node:test");
 
-function loadBackgroundInternals(settings = {}) {
+function loadBackgroundInternals(settings = {}, overrides = {}) {
   const scriptPath = path.join(__dirname, "..", "scripts", "background.js");
   const source = fs.readFileSync(scriptPath, "utf8");
 
@@ -89,6 +89,7 @@ function loadBackgroundInternals(settings = {}) {
     },
   };
 
+  Object.assign(context.chrome, overrides);
   context.globalThis = context;
   context.__EE_TEST__ = true;
 
@@ -776,4 +777,27 @@ runTest("extension calendar exports round-trip lesson groups into comparison tem
   assert.equal(lesson.group, "Group A");
   assert.equal(lesson.room, "12");
   assert.equal("description" in lesson, false);
+});
+
+test("existing-tab eTest bootstrap only injects its fixed helper when opted in, without reloading", async () => {
+  for (const settings of [{}, { eeAiQuestionHelperEnabled: true }, { eeEtestCopyEnabled: true }]) {
+    const injections = [];
+    let queries = 0;
+    const { ensureOpenEtestHelpers } = loadBackgroundInternals(settings, {
+      tabs: { query(options, callback) {
+        queries++;
+        assert.equal(options.url, "https://*.edupage.org/*");
+        callback([{ id: 1, url: "https://example.edupage.org/elearning/" },
+          { id: 2, url: "https://foreign.example/elearning/" }, { url: "https://example.edupage.org/user/" }]);
+      } },
+      scripting: { executeScript(options, callback) { injections.push(options); callback(); } },
+    });
+    await ensureOpenEtestHelpers();
+    const enabled = Object.keys(settings).length > 0;
+    assert.equal(queries, enabled ? 1 : 0);
+    assert.equal(injections.length, enabled ? 1 : 0);
+    if (enabled) assert.deepEqual(JSON.parse(JSON.stringify(injections[0])), {
+      target: { tabId: 1 }, files: ["scripts/etest-enhancer.js"],
+    });
+  }
 });
