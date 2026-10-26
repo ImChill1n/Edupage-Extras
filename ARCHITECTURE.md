@@ -20,6 +20,8 @@ portal. There is no framework or build step during development: the files in
   change subscriptions avoid startup races, while revision checks reject stale
   responses. `menu/language-settings.js` saves the Appearance selector; existing
   EduPage tabs can be refreshed to translate all already-rendered extension UI.
+  Firefox packaging loads `scripts/background-context.js` before the language
+  service so its event page serves catalogs directly despite having a document.
 - `scripts/background.js` handles browser events, commands, update checks,
   optional AI-provider requests, notifications, and calendar exports.
 - `scripts/content.js` applies themes and shared page styling. The remaining
@@ -36,6 +38,8 @@ portal. There is no framework or build step during development: the files in
   title, aria-label and alt attributes. Original values stay in memory and are
   restored only when the page has not since changed them. Removed fragments are
   restored and released. Scripts and editable controls are excluded.
+  CSS masks profile names until a connected body has been scanned with a usable
+  name pattern; `ee-anonymizer-active` releases the mask and is removed on disable.
   `eeHidePersonalInfoEnabled` remains the toggle; `eeAnonymizerAlias` is the
   normalized, 80-character, extension-local display name, defaulting to Anonymous.
   It is propagated through the shared theme-message contract but excluded from

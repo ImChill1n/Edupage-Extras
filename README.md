@@ -68,6 +68,7 @@ EduPage, open a GitHub issue or report it on [Discord](https://discord.gg/eNZXHe
   fallback while it loads. Forms, editors,
   scripts and stored EduPage data are not changed. Account names stay in memory;
   only your chosen alias is saved in extension storage.
+  Profile names stay hidden until a usable full name can be replaced.
 
 ### Grades
 

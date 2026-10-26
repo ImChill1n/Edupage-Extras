@@ -27,6 +27,12 @@ function fixture(name = "Marek Novák") {
     contains(node) { return this === node || this.childNodes.some(child => child.nodeType === 1 && child.contains(node) || child === node); }
   }
   const html = new Element("html"), head = html.append(new Element("head")), title = head.append(new Element("title", name + " — EduPage"));
+  const classes = new Set();
+  html.classList = {
+    remove(name) { classes.delete(name); },
+    toggle(name, on) { if (on) classes.add(name); else classes.delete(name); },
+    contains(name) { return classes.has(name); },
+  };
   const body = html.append(new Element("body"));
   const profile = body.append(new Element("div"));
   const nameElement = profile.append(new Element("span", name));
@@ -195,11 +201,32 @@ test("document_start can enable before the body is available", () => {
   const f = fixture();
   f.document.body = null;
   f.anonymizer.setState(true, "Anonymous");
+  assert.equal(f.document.documentElement.classList.contains("ee-anonymizer-active"), false);
   f.document.body = f.body;
   f.mutate(f.document.documentElement);
   assert.equal(f.text(f.nameElement), "Anonymous");
+  assert.equal(f.document.documentElement.classList.contains("ee-anonymizer-active"), true);
   f.anonymizer.setState(false);
+  assert.equal(f.document.documentElement.classList.contains("ee-anonymizer-active"), false);
   assert.equal(f.text(f.nameElement), "Marek Novák");
+});
+
+test("unusable names retain CSS masking until a full name can be anonymized", () => {
+  const f = fixture("Student"), active = () => f.document.documentElement.classList.contains("ee-anonymizer-active");
+  f.anonymizer.setState(true, "Anonymous");
+  assert.equal(active(), false);
+  f.nameElement.childNodes[0].data = "Marek Novák";
+  f.mutate(f.nameElement.childNodes[0], "characterData");
+  assert.equal(f.text(f.nameElement), "Anonymous");
+  assert.equal(active(), true);
+  f.anonymizer.setState(false);
+  assert.equal(active(), false);
+  for (const file of ["scripts/instant-theme.css", "scripts/theme-static.css"]) {
+    const css = fs.readFileSync(path.join(root, file), "utf8");
+    for (const selector of [".edubarProfilebox a.display > span", ".edubarProfilebox .profilemenu .userName", ".edubarProfilebox .profilemenu h1", "form.zteFilterForm .zsvHeaderTitle > h1"]) {
+      assert.ok(css.includes(`html.ee-hide-personal-info:not(.ee-anonymizer-active) ${selector}`));
+    }
+  }
 });
 
 test("alias normalization and settings autosave keep defaults, custom values and errors", () => {

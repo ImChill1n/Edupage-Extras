@@ -119,7 +119,10 @@
     }
     function flush() {
       timer = null;
-      if (!enabled || !doc.body) return;
+      if (!enabled || !doc.body?.isConnected) {
+        doc.documentElement?.classList.remove("ee-anonymizer-active");
+        return;
+      }
       requestingName = true;
       try { doc.dispatchEvent(new Event("ee-anonymizer-name-request")); }
       finally { requestingName = false; }
@@ -132,6 +135,7 @@
       if (queued.includes(doc.body)) scan(doc.body);
       else queued.filter(root => !queued.some(other => other !== root && other.contains(root))).forEach(scan);
       scan(doc.querySelector("title"));
+      doc.documentElement.classList.toggle("ee-anonymizer-active", !!pattern);
     }
     function enqueue(node) {
       const element = node?.nodeType === 3 ? node.parentElement : node;
@@ -168,6 +172,7 @@
         const nextAlias = EE.normalizeAnonymizerAlias(replacement);
         const changed = nextAlias !== alias;
         if (!on) {
+          doc.documentElement?.classList.remove("ee-anonymizer-active");
           enabled = false; observer?.disconnect(); observer = null;
           doc.removeEventListener("ee-anonymizer-name", receivePageName);
           doc.removeEventListener("ee-anonymizer-name-ready", pageReady);

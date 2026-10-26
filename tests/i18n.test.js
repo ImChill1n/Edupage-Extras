@@ -6,7 +6,7 @@ const test = require("node:test");
 const root = path.join(__dirname, "..");
 const catalogs = Object.fromEntries(["en", "sk", "cs"].map(language => [language, JSON.parse(fs.readFileSync(path.join(root, "_locales", language, "messages.json")))]));
 
-function load({ preference = "auto", browser = "en-US", content = false } = {}) {
+function load({ preference = "auto", browser = "en-US", content = false, firefoxBackground = false } = {}) {
   const stored = { eeLanguage: preference }, changes = [], handlers = [], requests = [];
   const failures = new Set(), delayed = new Map();
   let storageError = false;
@@ -38,8 +38,9 @@ function load({ preference = "auto", browser = "en-US", content = false } = {}) 
       return { ok: true, json: async () => catalogs[language] };
     },
   };
-  if (content) context.document = {};
+  if (content || firefoxBackground) context.document = {};
   vm.createContext(context);
+  if (firefoxBackground) vm.runInContext(fs.readFileSync(path.join(root, "scripts/background-context.js"), "utf8"), context);
   for (const file of ["scripts/lib/ee-common.js", "scripts/lib/ee-i18n.js"]) vm.runInContext(fs.readFileSync(path.join(root, file), "utf8"), context);
   return { api: context.EE.i18n, context, stored, handlers, requests, failures, delayed,
     change(value, area = "local") { changes.forEach(fn => fn({ eeLanguage: { newValue: value } }, area)); },
@@ -52,6 +53,25 @@ test("automatic language follows supported browser locales and otherwise uses En
     const f = load({ browser }); await f.api.ready;
     assert.equal(f.api.preference, "auto"); assert.equal(f.api.locale, expected);
     assert.equal(f.context.EE.getMessage("settingsHeading"), catalogs[expected].settingsHeading.message);
+  }
+});
+
+test("Firefox event pages serve catalogs directly despite having a document", async () => {
+  const f = load({ firefoxBackground: true, preference: "sk" });
+  await f.api.ready;
+  assert.equal(f.requests.length, 0);
+  assert.equal(f.api.msg("settingsHeading"), catalogs.sk.settingsHeading.message);
+  assert.equal(f.handlers.length, 1);
+  const response = await new Promise(resolve => f.handlers[0]({ type: "ee-language-catalog", language: "cs" }, { id: "fixture" }, resolve));
+  assert.equal(response.catalog.settingsHeading.message, catalogs.cs.settingsHeading.message);
+  const { createFirefoxPackageStaging } = require("../scripts-dev/package-policy.js");
+  const staging = createFirefoxPackageStaging("ee-i18n-test-");
+  try {
+    const manifest = JSON.parse(fs.readFileSync(path.join(staging, "manifest.json"), "utf8"));
+    assert.ok(manifest.background.scripts.indexOf("scripts/background-context.js") < manifest.background.scripts.indexOf("scripts/lib/ee-i18n.js"));
+    assert.ok(manifest.background.scripts.includes("scripts/background-context.js"));
+  } finally {
+    fs.rmSync(staging, { recursive: true, force: true });
   }
 });
 

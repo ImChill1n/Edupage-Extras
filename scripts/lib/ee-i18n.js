@@ -2,7 +2,7 @@
 (() => {
   "use strict";
   const KEY = "eeLanguage", LANGUAGES = ["en", "sk", "cs"];
-  const background = typeof document === "undefined";
+  const background = globalThis.__eeBackgroundContext === true || typeof document === "undefined";
   const catalogs = new Map(), subscribers = new Set();
   let preference = "auto", locale = browserLocale(), selected = null, english = null, revision = 0;
   const normalize = value => LANGUAGES.includes(value) ? value : "auto";
