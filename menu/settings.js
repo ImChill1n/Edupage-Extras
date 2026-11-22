@@ -171,6 +171,7 @@ const GRADES_WEIGHTS_KEY = "eeGradesWeightsEnabled";
 const TIMETABLE_EXPORT_KEY = "eeTimetableExportEnabled";
 const ETEST_INPUT_LENGTH_KEY = "eeEtestInputLengthEnabled";
 const ETEST_COPY_KEY = "eeEtestCopyEnabled";
+const ETEST_BLOCK_ANSWER_LOG_KEY = "eeActivityShieldBlockAnswerLog";
 const ETEST_RESULTS_KEY = "eeEtestResultsEnabled";
 const ETEST_QUESTION_BUTTONS_KEY = "eeEtestQuestionButtonsEnabled";
 const ETEST_WHOLE_TEST_BUTTON_KEY = "eeEtestWholeTestButtonEnabled";
@@ -1473,6 +1474,16 @@ if (etestResultsToggle) {
 	});
 	etestResultsToggle.addEventListener("change", () => {
 		chrome.storage.local.set({ [ETEST_RESULTS_KEY]: etestResultsToggle.checked });
+	});
+}
+
+const etestBlockAnswerLogToggle = document.getElementById("ee-activity-block-answer-log");
+if (etestBlockAnswerLogToggle) {
+	chrome.storage.local.get([ETEST_BLOCK_ANSWER_LOG_KEY], (result) => {
+		etestBlockAnswerLogToggle.checked = result[ETEST_BLOCK_ANSWER_LOG_KEY] === true;
+	});
+	etestBlockAnswerLogToggle.addEventListener("change", () => {
+		chrome.storage.local.set({ [ETEST_BLOCK_ANSWER_LOG_KEY]: etestBlockAnswerLogToggle.checked });
 	});
 }
 

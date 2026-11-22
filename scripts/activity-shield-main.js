@@ -15,7 +15,7 @@
   const FLAGS = [
     "enabled", "log", "visibilityState", "hidden", "visibilityEvents", "focus",
     "blur", "redirect", "mouseleave", "mouseout", "pointercapture", "clipboard",
-    "animationFrame", "blockEsc", "jquerySweep", "fullscreenSpoof",
+    "animationFrame", "blockEsc", "jquerySweep", "fullscreenSpoof", "blockAnswerLog"
   ];
   let preferences = Object.create(null);
 
@@ -26,6 +26,106 @@
   const nativeCancelAnimationFrame = window.cancelAnimationFrame;
 
   const active = (name) => preferences.enabled === true && preferences[name] === true;
+
+  const logShield = (...args) => {
+    if (preferences.log === true) {
+      console.info("[Edupage Extras Activity Shield]", ...args);
+    }
+  };
+
+  const BLOCKED_ANSWER_LOG_TYPES = new Set([
+    "COPY",
+    "CUT",
+    "PASTE",
+    "WINDOW_FOCUS",
+    "WINDOW_BLUR",
+    "WINDOW_HIDDEN",
+    "WINDOW_VISIBLE",
+    "PLAYER_BLURRED",
+    "PLAYER_ACTIVE",
+    "FULLSCREEN_EXIT",
+  ]);
+
+  let hasAllowedFullscreenEnter = false;
+  let cleanAnswerLogId = Number(sessionStorage.getItem("etestPlayerLastAnswerLogId")) || 0;
+
+  const shouldDropAnswerLogItem = (item) => {
+    if (preferences.blockAnswerLog !== true) return false;
+    if (!item || typeof item.id !== "string" || !item.id.startsWith("an")) {
+      return false;
+    }
+
+    if (item.type === "FULLSCREEN_ENTER") {
+      if (!hasAllowedFullscreenEnter) {
+        hasAllowedFullscreenEnter = true;
+        logShield("Povoľujem prvý FULLSCREEN_ENTER:", item);
+        return false;
+      }
+      return true;
+    }
+
+    return BLOCKED_ANSWER_LOG_TYPES.has(item.type);
+  };
+
+  try {
+    const nativeSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      if (this === window.sessionStorage && key === "etestPlayerLastAnswerLogId" && preferences.blockAnswerLog === true) {
+        return nativeSetItem.call(this, key, String(cleanAnswerLogId));
+      }
+      return nativeSetItem.call(this, key, value);
+    };
+  } catch (error) {
+    logShield("Could not hook sessionStorage.setItem", error);
+  }
+
+  try {
+    Object.defineProperty(Object.prototype, "events", {
+      configurable: true,
+      get() {
+        return undefined;
+      },
+      set(val) {
+        if (Array.isArray(val) && !val.__eePushHooked) {
+          const nativePush = val.push;
+          val.push = function (...items) {
+            const allowedItems = [];
+            for (const item of items) {
+              if (item && typeof item.id === "string" && item.id.startsWith("an")) {
+                if (shouldDropAnswerLogItem(item)) {
+                  logShield("Zahadzujem answerLog item:", item.type, item);
+                  continue;
+                }
+
+                if (preferences.blockAnswerLog === true) {
+                  cleanAnswerLogId++;
+                  const underscoreIndex = item.id.indexOf("_");
+                  const suffix = underscoreIndex !== -1 ? item.id.slice(underscoreIndex) : "";
+                  item.id = "an" + String(cleanAnswerLogId).padStart(7, "0") + suffix;
+                }
+              }
+              allowedItems.push(item);
+            }
+
+            if (allowedItems.length === 0) {
+              return this.length;
+            }
+            return nativePush.apply(this, allowedItems);
+          };
+          val.__eePushHooked = true;
+        }
+
+        Object.defineProperty(this, "events", {
+          value: val,
+          writable: true,
+          enumerable: true,
+          configurable: true,
+        });
+      },
+    });
+  } catch (error) {
+    logShield("Could not hook answerLogByWidget.events", error);
+  }
 
   const readNativeVisibilityState = () => {
     try {
