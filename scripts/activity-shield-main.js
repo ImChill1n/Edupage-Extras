@@ -47,10 +47,10 @@
   ]);
 
   let hasAllowedFullscreenEnter = false;
-  let cleanAnswerLogId = Number(sessionStorage.getItem("etestPlayerLastAnswerLogId")) || 0;
+  let cleanAnswerLogId = 0;
+  let restoreAnswerLogHooks = null;
 
   const shouldDropAnswerLogItem = (item) => {
-    if (preferences.blockAnswerLog !== true) return false;
     if (!item || typeof item.id !== "string" || !item.id.startsWith("an")) {
       return false;
     }
@@ -58,7 +58,6 @@
     if (item.type === "FULLSCREEN_ENTER") {
       if (!hasAllowedFullscreenEnter) {
         hasAllowedFullscreenEnter = true;
-        logShield("Povoľujem prvý FULLSCREEN_ENTER:", item);
         return false;
       }
       return true;
@@ -67,64 +66,79 @@
     return BLOCKED_ANSWER_LOG_TYPES.has(item.type);
   };
 
-  try {
-    const nativeSetItem = Storage.prototype.setItem;
-    Storage.prototype.setItem = function (key, value) {
-      if (this === window.sessionStorage && key === "etestPlayerLastAnswerLogId" && preferences.blockAnswerLog === true) {
+  function syncAnswerLog() {
+    if (!active("blockAnswerLog")) {
+      restoreAnswerLogHooks?.();
+      restoreAnswerLogHooks = null;
+      return;
+    }
+    if (restoreAnswerLogHooks || "events" in Object.prototype) return;
+
+    const wrappedArrays = new Map();
+    const storagePrototype = globalThis.Storage?.prototype;
+    if (!storagePrototype) return;
+    const nativeSetItem = storagePrototype.setItem;
+    const setEvents = function (value) {
+      if (Array.isArray(value) && !wrappedArrays.has(value)) {
+        const descriptor = Object.getOwnPropertyDescriptor(value, "push");
+        const nativePush = value.push;
+        const push = function (...items) {
+          if (!active("blockAnswerLog")) return Reflect.apply(nativePush, this, items);
+          const allowedItems = [];
+          for (const item of items) {
+            if (item && typeof item.id === "string" && item.id.startsWith("an")) {
+              if (shouldDropAnswerLogItem(item)) continue;
+              cleanAnswerLogId++;
+              const underscoreIndex = item.id.indexOf("_");
+              const suffix = underscoreIndex === -1 ? "" : item.id.slice(underscoreIndex);
+              item.id = "an" + String(cleanAnswerLogId).padStart(7, "0") + suffix;
+            }
+            allowedItems.push(item);
+          }
+          return allowedItems.length ? Reflect.apply(nativePush, this, allowedItems) : this.length;
+        };
+        if (Reflect.defineProperty(value, "push", { value: push, writable: true, configurable: true })) {
+          wrappedArrays.set(value, { descriptor, push });
+        }
+      }
+      Object.defineProperty(this, "events", {
+        value, writable: true, enumerable: true, configurable: true,
+      });
+    };
+    const setItem = function (key, value) {
+      if (active("blockAnswerLog") && this === window.sessionStorage && key === "etestPlayerLastAnswerLogId") {
         return nativeSetItem.call(this, key, String(cleanAnswerLogId));
       }
       return nativeSetItem.call(this, key, value);
     };
-  } catch (error) {
-    logShield("Could not hook sessionStorage.setItem", error);
-  }
 
-  try {
-    Object.defineProperty(Object.prototype, "events", {
-      configurable: true,
-      get() {
-        return undefined;
-      },
-      set(val) {
-        if (Array.isArray(val) && !val.__eePushHooked) {
-          const nativePush = val.push;
-          val.push = function (...items) {
-            const allowedItems = [];
-            for (const item of items) {
-              if (item && typeof item.id === "string" && item.id.startsWith("an")) {
-                if (shouldDropAnswerLogItem(item)) {
-                  logShield("Zahadzujem answerLog item:", item.type, item);
-                  continue;
-                }
+    const restore = () => {
+      if (Object.getOwnPropertyDescriptor(Object.prototype, "events")?.set === setEvents) {
+        delete Object.prototype.events;
+      }
+      if (storagePrototype.setItem === setItem) storagePrototype.setItem = nativeSetItem;
+      for (const [array, { descriptor, push }] of wrappedArrays) {
+        if (Object.getOwnPropertyDescriptor(array, "push")?.value !== push) continue;
+        if (descriptor) Reflect.defineProperty(array, "push", descriptor);
+        else Reflect.deleteProperty(array, "push");
+      }
+      wrappedArrays.clear();
+    };
 
-                if (preferences.blockAnswerLog === true) {
-                  cleanAnswerLogId++;
-                  const underscoreIndex = item.id.indexOf("_");
-                  const suffix = underscoreIndex !== -1 ? item.id.slice(underscoreIndex) : "";
-                  item.id = "an" + String(cleanAnswerLogId).padStart(7, "0") + suffix;
-                }
-              }
-              allowedItems.push(item);
-            }
-
-            if (allowedItems.length === 0) {
-              return this.length;
-            }
-            return nativePush.apply(this, allowedItems);
-          };
-          val.__eePushHooked = true;
-        }
-
-        Object.defineProperty(this, "events", {
-          value: val,
-          writable: true,
-          enumerable: true,
-          configurable: true,
-        });
-      },
-    });
-  } catch (error) {
-    logShield("Could not hook answerLogByWidget.events", error);
+    try {
+      hasAllowedFullscreenEnter = false;
+      cleanAnswerLogId = Number(window.sessionStorage.getItem("etestPlayerLastAnswerLogId")) || 0;
+      Object.defineProperty(Object.prototype, "events", {
+        configurable: true,
+        get() { return undefined; },
+        set: setEvents,
+      });
+      storagePrototype.setItem = setItem;
+      restoreAnswerLogHooks = restore;
+    } catch (error) {
+      restore();
+      logShield("Could not enable the answer-log shield", error);
+    }
   }
 
   const readNativeVisibilityState = () => {
@@ -534,6 +548,7 @@
       syncRedirect();
       syncAnimationFrames();
       syncJquerySweep();
+      syncAnswerLog();
     };
     channel.postMessage({ type: "connected" });
   };
