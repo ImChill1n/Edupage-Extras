@@ -24,6 +24,7 @@
   const nativeHasFocus = Document.prototype.hasFocus;
   const nativeRequestAnimationFrame = window.requestAnimationFrame;
   const nativeCancelAnimationFrame = window.cancelAnimationFrame;
+  const nativeFullscreenElement = Object.getOwnPropertyDescriptor(Document.prototype, "fullscreenElement");
 
   const active = (name) => preferences.enabled === true && preferences[name] === true;
 
@@ -157,6 +158,14 @@
     }
   };
 
+  const readNativeFullscreenElement = () => {
+    try {
+      return nativeFullscreenElement?.get?.call(document) ?? null;
+    } catch (error) {
+      return null;
+    }
+  };
+
   const block = (event, preventDefault = true) => {
     if (preventDefault) {
       event.preventDefault();
@@ -249,6 +258,19 @@
     });
   } catch (error) {
     debug("Could not override document.hidden", error);
+  }
+
+  try {
+    Object.defineProperty(document, "fullscreenElement", {
+      configurable: true,
+      get() {
+        return active("fullscreenSpoof")
+          ? (readNativeFullscreenElement() || document.documentElement)
+          : readNativeFullscreenElement();
+      },
+    });
+  } catch (error) {
+    debug("Could not override document.fullscreenElement", error);
   }
 
   try {
