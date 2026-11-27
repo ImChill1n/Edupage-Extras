@@ -4,10 +4,6 @@ All notable changes to Edupage Extras are documented here. Versions follow
 `package.json` / `manifest.json`. History pre v0.7.0 is only in the git
 log — this file starts at the Firefox-compatibility update.
 
-## 1.1.6 — 2026-11-22
-
-- Add an optional eTest Tools setting to block selected eTest activity log events independently of Stay Active.
-
 ## 1.1.4 — 2026-11-19
 
 - Publish a privacy policy covering usage analytics and other data handling.

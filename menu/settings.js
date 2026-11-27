@@ -257,7 +257,6 @@ const activityShieldSettings = [
 	["ActivityRestoreFullscreen", "eeActivityShieldRestoreFullscreen"],
 	["ActivityJquerySweep", "eeActivityShieldJquerySweep"],
 	["ActivityFullscreenSpoof", "eeActivityShieldFullscreenSpoof"],
-	["ee-activity-block-answer-log", "eeActivityShieldBlockAnswerLog"],
 	["ActivityVisualIndicator", "eeActivityShieldVisualIndicator"],
 	["ActivityLog", "eeActivityShieldLog"],
 ];
@@ -278,7 +277,6 @@ const activityShieldDefaults = {
 	eeActivityShieldRestoreFullscreen: false,
 	eeActivityShieldJquerySweep: true,
 	eeActivityShieldFullscreenSpoof: true,
-	eeActivityShieldBlockAnswerLog: false,
 	eeActivityShieldVisualIndicator: false,
 	eeActivityShieldLog: false,
 };

@@ -432,8 +432,6 @@
   "fullscreenSpoof": { "message": "Potlačiť udalosti opustenia celej obrazovky" },
   "fullscreenSpoofDesc": { "message": "Potlačí následné udalosti celej obrazovky v eTeste. Natívny stav a skôr pridané obsluhy zostávajú pozorovateľné." },
   "toggleFullscreenSpoof": { "message": "Prepnúť blokovanie detekcie opustenia fullscreen" },
-  "blockAnswerLog": { "message": "Blokovať záznam aktivity v eTeste" },
-  "blockAnswerLogDesc": { "message": "Potlačí vybrané udalosti aktivity v protokole odpovedí eTestu." },
   "sectBackground": { "message": "Správanie na pozadí" },
   "stopRedirects": { "message": "Zastaviť presmerovania pri znovunačítaní skrytej karty" },
   "stopRedirectsDesc": { "message": "Pokúsiť sa blokovať presmerovania pri znovunačítaní, ktoré sa spustia po skrytí Edupage." },

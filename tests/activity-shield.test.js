@@ -173,13 +173,7 @@ function createPage({ prefs = {}, bridgeFirst = false, navigation = true, deferS
       onChanged: { addListener: (fn) => storageListeners.push(fn) },
     },
   };
-  class Storage {
-    values = new Map();
-    getItem(key) { return this.values.get(key) ?? null; }
-    setItem(key, value) { this.values.set(key, String(value)); }
-  }
-  window.sessionStorage = new Storage();
-  const context = vm.createContext({ window, document, Storage, Document, Element, Event, KeyboardEvent, MessageChannel, chrome,
+  const context = vm.createContext({ window, document, Document, Element, Event, KeyboardEvent, MessageChannel, chrome,
     console, setTimeout, clearTimeout: (id) => timers.delete(id),
     setInterval(fn, interval) { const id = setTimeout(fn, interval); timers.get(id).interval = interval; return id; },
     clearInterval: (id) => timers.delete(id), performance: { now: () => now } });
@@ -190,7 +184,6 @@ function createPage({ prefs = {}, bridgeFirst = false, navigation = true, deferS
 
   return {
     window, document, chrome, Event, Element, nativeFrames, canceledFrames, timers, storageReads, errors, channels, advance,
-    evaluate(source) { return vm.runInContext(source, context); },
     setPrefs(changes) {
       Object.assign(stored, changes);
       for (const listener of storageListeners) listener(Object.fromEntries(Object.entries(changes).map(([key, value]) => [key, { newValue: value }])), "local");
@@ -516,27 +509,4 @@ test("status dot toggles the master, follows external changes, and retries faile
   delete page.chrome.runtime.lastError;
   click();
   assert.equal(dot.style.background, "#89b4fa");
-});
-
-test("answer-log hooks require both switches and restore native behavior when either turns off", () => {
-  const page = createPage({ prefs: { eeActivityShieldBlockAnswerLog: true } });
-  const hasEvents = () => page.evaluate("'events' in {}");
-  assert.equal(hasEvents(), false);
-  page.evaluate("globalThis.originalSetItem = Storage.prototype.setItem");
-
-  page.setPrefs({ eeActivityShieldEnabled: true });
-  assert.equal(hasEvents(), true);
-  page.evaluate("globalThis.logFixture = {}; logFixture.events = []");
-  assert.equal(page.evaluate("logFixture.events.push === Array.prototype.push"), false);
-  assert.equal(page.evaluate("Storage.prototype.setItem === originalSetItem"), false);
-
-  page.setPrefs({ eeActivityShieldEnabled: false });
-  assert.equal(hasEvents(), false);
-  assert.equal(page.evaluate("logFixture.events.push === Array.prototype.push"), true);
-  assert.equal(page.evaluate("Storage.prototype.setItem === originalSetItem"), true);
-
-  page.setPrefs({ eeActivityShieldEnabled: true });
-  assert.equal(hasEvents(), true);
-  page.setPrefs({ eeActivityShieldBlockAnswerLog: false });
-  assert.equal(hasEvents(), false);
 });

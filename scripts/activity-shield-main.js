@@ -15,7 +15,7 @@
   const FLAGS = [
     "enabled", "log", "visibilityState", "hidden", "visibilityEvents", "focus",
     "blur", "redirect", "mouseleave", "mouseout", "pointercapture", "clipboard",
-    "animationFrame", "blockEsc", "jquerySweep", "fullscreenSpoof", "blockAnswerLog"
+    "animationFrame", "blockEsc", "jquerySweep", "fullscreenSpoof"
   ];
   let preferences = Object.create(null);
 
@@ -28,119 +28,7 @@
 
   const active = (name) => preferences.enabled === true && preferences[name] === true;
 
-  const logShield = (...args) => {
-    if (preferences.log === true) {
-      console.info("[Edupage Extras Activity Shield]", ...args);
-    }
-  };
-
-  const BLOCKED_ANSWER_LOG_TYPES = new Set([
-    "COPY",
-    "CUT",
-    "PASTE",
-    "WINDOW_FOCUS",
-    "WINDOW_BLUR",
-    "WINDOW_HIDDEN",
-    "WINDOW_VISIBLE",
-    "PLAYER_BLURRED",
-    "PLAYER_ACTIVE",
-    "FULLSCREEN_EXIT",
-  ]);
-
   let hasAllowedFullscreenEnter = false;
-  let cleanAnswerLogId = 0;
-  let restoreAnswerLogHooks = null;
-
-  const shouldDropAnswerLogItem = (item) => {
-    if (!item || typeof item.id !== "string" || !item.id.startsWith("an")) {
-      return false;
-    }
-
-    if (item.type === "FULLSCREEN_ENTER") {
-      if (!hasAllowedFullscreenEnter) {
-        hasAllowedFullscreenEnter = true;
-        return false;
-      }
-      return true;
-    }
-
-    return BLOCKED_ANSWER_LOG_TYPES.has(item.type);
-  };
-
-  function syncAnswerLog() {
-    if (!active("blockAnswerLog")) {
-      restoreAnswerLogHooks?.();
-      restoreAnswerLogHooks = null;
-      return;
-    }
-    if (restoreAnswerLogHooks || "events" in Object.prototype) return;
-
-    const wrappedArrays = new Map();
-    const storagePrototype = globalThis.Storage?.prototype;
-    if (!storagePrototype) return;
-    const nativeSetItem = storagePrototype.setItem;
-    const setEvents = function (value) {
-      if (Array.isArray(value) && !wrappedArrays.has(value)) {
-        const descriptor = Object.getOwnPropertyDescriptor(value, "push");
-        const nativePush = value.push;
-        const push = function (...items) {
-          if (!active("blockAnswerLog")) return Reflect.apply(nativePush, this, items);
-          const allowedItems = [];
-          for (const item of items) {
-            if (item && typeof item.id === "string" && item.id.startsWith("an")) {
-              if (shouldDropAnswerLogItem(item)) continue;
-              cleanAnswerLogId++;
-              const underscoreIndex = item.id.indexOf("_");
-              const suffix = underscoreIndex === -1 ? "" : item.id.slice(underscoreIndex);
-              item.id = "an" + String(cleanAnswerLogId).padStart(7, "0") + suffix;
-            }
-            allowedItems.push(item);
-          }
-          return allowedItems.length ? Reflect.apply(nativePush, this, allowedItems) : this.length;
-        };
-        if (Reflect.defineProperty(value, "push", { value: push, writable: true, configurable: true })) {
-          wrappedArrays.set(value, { descriptor, push });
-        }
-      }
-      Object.defineProperty(this, "events", {
-        value, writable: true, enumerable: true, configurable: true,
-      });
-    };
-    const setItem = function (key, value) {
-      if (active("blockAnswerLog") && this === window.sessionStorage && key === "etestPlayerLastAnswerLogId") {
-        return nativeSetItem.call(this, key, String(cleanAnswerLogId));
-      }
-      return nativeSetItem.call(this, key, value);
-    };
-
-    const restore = () => {
-      if (Object.getOwnPropertyDescriptor(Object.prototype, "events")?.set === setEvents) {
-        delete Object.prototype.events;
-      }
-      if (storagePrototype.setItem === setItem) storagePrototype.setItem = nativeSetItem;
-      for (const [array, { descriptor, push }] of wrappedArrays) {
-        if (Object.getOwnPropertyDescriptor(array, "push")?.value !== push) continue;
-        if (descriptor) Reflect.defineProperty(array, "push", descriptor);
-        else Reflect.deleteProperty(array, "push");
-      }
-      wrappedArrays.clear();
-    };
-
-    try {
-      hasAllowedFullscreenEnter = false;
-      cleanAnswerLogId = Number(window.sessionStorage.getItem("etestPlayerLastAnswerLogId")) || 0;
-      Object.defineProperty(Object.prototype, "events", {
-        configurable: true,
-        get() { return undefined; },
-        set: setEvents,
-      });
-      storagePrototype.setItem = setItem;
-      restoreAnswerLogHooks = restore;
-    } catch (error) {
-      restore();
-      logShield("Could not enable the answer-log shield", error);
-    }
-  }
 
   const readNativeVisibilityState = () => {
     try {
@@ -570,7 +458,6 @@
       syncRedirect();
       syncAnimationFrames();
       syncJquerySweep();
-      syncAnswerLog();
     };
     channel.postMessage({ type: "connected" });
   };

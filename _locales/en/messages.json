@@ -432,8 +432,6 @@
   "fullscreenSpoof": { "message": "Suppress Fullscreen-Exit Events" },
   "fullscreenSpoofDesc": { "message": "Suppress downstream eTest fullscreen events. Native fullscreen state and earlier listeners remain observable." },
   "toggleFullscreenSpoof": { "message": "Toggle block fullscreen-exit detection" },
-  "blockAnswerLog": { "message": "Block eTest Activity Logging" },
-  "blockAnswerLogDesc": { "message": "Suppress selected activity events in the eTest answer log." },
   "sectBackground": { "message": "Background Behavior" },
   "stopRedirects": { "message": "Stop Hidden-Tab Reload Redirects" },
   "stopRedirectsDesc": { "message": "Try to block reload redirects that start after Edupage becomes hidden." },

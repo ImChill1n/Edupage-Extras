@@ -202,8 +202,6 @@ across open tabs when clicked, preserving individual shield preferences. Blue
 means enabled; red means paused. The dot stays visible in both states while its
 visual indicator setting is on. There is no separate panic button.
 Already removed jQuery handlers cannot be restored without reloading.
-The eTest activity logging shield requires both its own switch and the Stay
-Active master switch. Turning either switch off removes its hooks.
 
 Stay Active changes selected page-visible activity signals. Its jQuery Sweep directly
 removes `.etestplayeral` and `.etestaplayer` handlers from `window` and `document`,

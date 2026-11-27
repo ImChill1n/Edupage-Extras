@@ -27,7 +27,6 @@
     "eeActivityShieldBlockEsc",
     "eeActivityShieldJquerySweep",
     "eeActivityShieldFullscreenSpoof",
-    "eeActivityShieldBlockAnswerLog",
     "eeActivityShieldVisualIndicator",
     "eeActivityShieldLog",
   ];
@@ -48,7 +47,6 @@
     eeActivityShieldBlockEsc: true,
     eeActivityShieldJquerySweep: true,
     eeActivityShieldFullscreenSpoof: true,
-    eeActivityShieldBlockAnswerLog: false,
     eeActivityShieldVisualIndicator: false,
     eeActivityShieldLog: false,
   };
@@ -70,7 +68,6 @@
     blockEsc: "eeActivityShieldBlockEsc",
     jquerySweep: "eeActivityShieldJquerySweep",
     fullscreenSpoof: "eeActivityShieldFullscreenSpoof",
-    blockAnswerLog: "eeActivityShieldBlockAnswerLog",
   };
   let channel = null;
   let connected = false;
